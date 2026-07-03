@@ -1,0 +1,58 @@
+/* 布局样式 */
+.header {
+    background-color: #333;
+    color: white;
+    padding: 15px 0;
+    text-align: center;
+}
+
+.main-container {
+    display: flex;
+    min-height: calc(100vh - 120px);
+    margin: 20px 0;
+}
+
+.left-panel {
+    flex: 0 0 250px;
+    padding: 15px;
+    background: #f5f5f5;
+    border-right: 1px solid #ddd;
+}
+
+.cinema-container {
+    flex: 1;
+    padding: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.right-panel {
+    flex: 0 0 300px;
+    padding: 15px;
+    background: #f5f5f5;
+    border-left: 1px solid #ddd;
+}
+
+.footer {
+    background-color: #333;
+    color: white;
+    text-align: center;
+    padding: 15px 0;
+    margin-top: 20px;
+}
+
+/* 响应式布局基础类 */
+@media (max-width: 1024px) {
+    .main-container {
+        flex-direction: column;
+    }
+    
+    .left-panel,
+    .right-panel {
+        flex: 0 0 auto;
+        width: 100%;
+        border: none;
+        border-bottom: 1px solid #ddd;
+    }
+}

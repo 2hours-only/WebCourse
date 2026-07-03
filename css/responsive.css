@@ -1,0 +1,103 @@
+/* 响应式设计 */
+
+/* 移动设备样式 */
+@media (max-width: 768px) {
+    .header h1 {
+        font-size: 1.2em;
+    }
+    
+    .left-panel,
+    .right-panel {
+        padding: 10px;
+    }
+    
+    .cinema-container {
+        padding: 10px;
+    }
+    
+    .card {
+        padding: 15px;
+    }
+    
+    .btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    .form-group input,
+    .form-group select {
+        padding: 6px;
+    }
+}
+
+/* 平板设备样式 */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .left-panel {
+        flex: 0 0 200px;
+    }
+    
+    .right-panel {
+        flex: 0 0 250px;
+    }
+    
+    .cinema-container {
+        padding: 20px;
+    }
+}
+
+/* 大屏幕样式 */
+@media (min-width: 1025px) {
+    .main-container {
+        margin: 30px 0;
+    }
+    
+    .left-panel {
+        padding: 20px;
+    }
+    
+    .right-panel {
+        padding: 20px;
+    }
+    
+    .cinema-container {
+        padding: 30px;
+    }
+}
+
+/* 无障碍模式响应式调整 */
+.accessibility-large-font .header h1 {
+    font-size: 1.8em;
+}
+
+.accessibility-large-font .card {
+    font-size: 1.2em;
+}
+
+.accessibility-high-contrast .card {
+    background: #000;
+    color: #fff;
+    border: 1px solid #fff;
+}
+
+.accessibility-high-contrast .btn {
+    background-color: #fff;
+    color: #000;
+    border: 1px solid #fff;
+}
+
+.accessibility-colorblind .seat.free {
+    background-color: #00FF00;
+}
+
+.accessibility-colorblind .seat.sold {
+    background-color: #FF0000;
+}
+
+.accessibility-colorblind .seat.selected {
+    background-color: #0000FF;
+}
+
+.accessibility-colorblind .seat.recommended {
+    background-color: #FFFF00;
+    border: 2px solid #FFA500;
+}

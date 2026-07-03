@@ -1,0 +1,2072 @@
+Project
+
+===== 目录结构 =====
+
+WebCourse/
+├── assets/
+├── css/
+│   ├── base.css
+│   ├── component.css
+│   ├── layout.css
+│   ├── responsive.css
+│   └── theme.css
+├── docs/
+│   ├── old_version/
+│   ├── 作业要求截图.pdf
+│   ├── 接口.md
+│   └── 说明.md
+├── js/
+│   ├── app/
+│   │   └── main.js
+│   ├── canvas/
+│   │   ├── heatmap.js
+│   │   ├── interaction.js
+│   │   └── renderer.js
+│   ├── core/
+│   │   ├── cinema.js
+│   │   ├── order.js
+│   │   └── seat.js
+│   ├── data/
+│   │   └── cinemaData.js
+│   ├── recommend/
+│   │   ├── recommend.js
+│   │   ├── rule.js
+│   │   └── score.js
+│   ├── storage/
+│   │   └── storage.js
+│   ├── ui/
+│   │   ├── accessibility.js
+│   │   ├── dialog.js
+│   │   └── panel.js
+│   └── utils/
+│       ├── config.js
+│       ├── eventBus.js
+│       └── math.js
+├── README.md
+└── index.html
+
+===== 项目代码 =====
+
+---=== README.md ===---
+
+
+---=== index.html ===---
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SmartCinema Skeleton</title>
+    <style>
+      /* 简单布局，确保容器存在 */
+      .main-container {
+        display: flex;
+        height: 100vh;
+      }
+      .left-panel {
+        width: 200px;
+        background: #f0f0f0;
+        padding: 10px;
+      }
+      .cinema-container {
+        flex: 1;
+        background: #e9e9e9;
+        position: relative;
+      }
+      .right-panel {
+        width: 250px;
+        background: #f0f0f0;
+        padding: 10px;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="main-container">
+
+        <div class="left-panel">
+          <div id="user-input-area">
+            <p>用户输入区</p>
+            <select id="age-select">
+              <option value="adult">成人</option>
+            </select>
+            <input
+              id="people-count"
+              type="number"
+              value="2"
+              placeholder="人数"
+            />
+            <button id="recommend-btn">智能推荐</button>
+          </div>
+          <div id="accessibility-area">
+            <h4>无障碍</h4>
+            <button id="font-toggle">大字体</button>
+          </div>
+        </div>
+
+        <div class="cinema-container">
+          <canvas id="cinema-canvas"></canvas>
+        </div>
+
+        <div class="right-panel">
+          <div id="recommend-result"><p>推荐结果</p></div>
+          <div id="selected-seats"><p>已选座位</p></div>
+          <div id="order-info"><p>订单信息</p></div>
+          <button id="purchase-btn" disabled>购票</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="./js/app/main.js"></script>
+  </body>
+</html>
+
+---=== css/base.css ===---
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    line-height: 1.6;
+    color: #333;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-primary {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.btn-secondary {
+    background-color: #2196F3;
+    color: white;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-bold {
+    font-weight: bold;
+}
+
+.accessibility-large-font {
+    font-size: 1.2em;
+}
+
+.accessibility-high-contrast {
+    background: #000;
+    color: #fff;
+}
+
+.accessibility-colorblind {
+
+}
+
+---=== css/component.css ===---
+.user-info-form {
+    margin-bottom: 20px;
+}
+
+.recommend-btn {
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+.accessibility-controls {
+    margin-top: 20px;
+}
+
+.seat-canvas {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.recommendation-info {
+    margin-bottom: 20px;
+}
+
+.selected-seats {
+    margin-bottom: 20px;
+}
+
+.order-info {
+    margin-bottom: 20px;
+}
+
+.purchase-btn {
+    width: 100%;
+}
+
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.dialog-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 500px;
+    width: 90%;
+}
+
+.dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.dialog-close {
+    cursor: pointer;
+    font-size: 20px;
+}
+
+.seat {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.seat:hover {
+    opacity: 0.8;
+}
+
+.seat.free {
+    background-color: #4CAF50;
+}
+
+.seat.sold {
+    background-color: #F44336;
+    cursor: not-allowed;
+}
+
+.seat.selected {
+    background-color: #2196F3;
+}
+
+.seat.recommended {
+    background-color: #FFC107;
+    border: 2px solid #FF9800;
+}
+
+.heatmap-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+.heatmap-cell {
+    position: absolute;
+}
+
+.heatmap-hot {
+    background-color: rgba(255, 0, 0, 0.3);
+}
+
+.heatmap-warm {
+    background-color: rgba(255, 165, 0, 0.3);
+}
+
+.heatmap-cold {
+    background-color: rgba(0, 0, 255, 0.3);
+}
+
+---=== css/layout.css ===---
+.header {
+    background-color: #333;
+    color: white;
+    padding: 15px 0;
+    text-align: center;
+}
+
+.main-container {
+    display: flex;
+    min-height: calc(100vh - 120px);
+    margin: 20px 0;
+}
+
+.left-panel {
+    flex: 0 0 250px;
+    padding: 15px;
+    background: #f5f5f5;
+    border-right: 1px solid #ddd;
+}
+
+.cinema-container {
+    flex: 1;
+    padding: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.right-panel {
+    flex: 0 0 300px;
+    padding: 15px;
+    background: #f5f5f5;
+    border-left: 1px solid #ddd;
+}
+
+.footer {
+    background-color: #333;
+    color: white;
+    text-align: center;
+    padding: 15px 0;
+    margin-top: 20px;
+}
+
+@media (max-width: 1024px) {
+    .main-container {
+        flex-direction: column;
+    }
+
+    .left-panel,
+    .right-panel {
+        flex: 0 0 auto;
+        width: 100%;
+        border: none;
+        border-bottom: 1px solid #ddd;
+    }
+}
+
+---=== css/responsive.css ===---
+@media (max-width: 768px) {
+    .header h1 {
+        font-size: 1.2em;
+    }
+
+    .left-panel,
+    .right-panel {
+        padding: 10px;
+    }
+
+    .cinema-container {
+        padding: 10px;
+    }
+
+    .card {
+        padding: 15px;
+    }
+
+    .btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .form-group input,
+    .form-group select {
+        padding: 6px;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .left-panel {
+        flex: 0 0 200px;
+    }
+
+    .right-panel {
+        flex: 0 0 250px;
+    }
+
+    .cinema-container {
+        padding: 20px;
+    }
+}
+
+@media (min-width: 1025px) {
+    .main-container {
+        margin: 30px 0;
+    }
+
+    .left-panel {
+        padding: 20px;
+    }
+
+    .right-panel {
+        padding: 20px;
+    }
+
+    .cinema-container {
+        padding: 30px;
+    }
+}
+
+.accessibility-large-font .header h1 {
+    font-size: 1.8em;
+}
+
+.accessibility-large-font .card {
+    font-size: 1.2em;
+}
+
+.accessibility-high-contrast .card {
+    background: #000;
+    color: #fff;
+    border: 1px solid #fff;
+}
+
+.accessibility-high-contrast .btn {
+    background-color: #fff;
+    color: #000;
+    border: 1px solid #fff;
+}
+
+.accessibility-colorblind .seat.free {
+    background-color: #00FF00;
+}
+
+.accessibility-colorblind .seat.sold {
+    background-color: #FF0000;
+}
+
+.accessibility-colorblind .seat.selected {
+    background-color: #0000FF;
+}
+
+.accessibility-colorblind .seat.recommended {
+    background-color: #FFFF00;
+    border: 2px solid #FFA500;
+}
+
+---=== css/theme.css ===---
+:root {
+    --primary-color: #4CAF50;
+    --secondary-color: #2196F3;
+    --accent-color: #FFC107;
+    --danger-color: #F44336;
+    --dark-color: #333;
+    --light-color: #f5f5f5;
+    --text-color: #333;
+    --text-light-color: #666;
+    --border-color: #ddd;
+    --shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+[data-theme="dark"] {
+    --primary-color: #66BB6A;
+    --secondary-color: #42A5F5;
+    --accent-color: #FFD54F;
+    --danger-color: #EF5350;
+    --dark-color: #121212;
+    --light-color: #1E1E1E;
+    --text-color: #E0E0E0;
+    --text-light-color: #B0B0B0;
+    --border-color: #333;
+    --shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+body {
+    background-color: var(--light-color);
+    color: var(--text-color);
+}
+
+.header {
+    background-color: var(--dark-color);
+}
+
+.card {
+    background-color: white;
+    box-shadow: var(--shadow);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+}
+
+.btn-secondary {
+    background-color: var(--secondary-color);
+}
+
+.seat.free {
+    background-color: var(--primary-color);
+}
+
+.seat.sold {
+    background-color: var(--danger-color);
+}
+
+.seat.selected {
+    background-color: var(--secondary-color);
+}
+
+.seat.recommended {
+    background-color: var(--accent-color);
+    border: 2px solid var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.border {
+    border: 1px solid var(--border-color);
+}
+
+.border-top {
+    border-top: 1px solid var(--border-color);
+}
+
+.border-bottom {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.border-left {
+    border-left: 1px solid var(--border-color);
+}
+
+.border-right {
+    border-right: 1px solid var(--border-color);
+}
+
+.text-primary {
+    color: var(--primary-color);
+}
+
+.text-secondary {
+    color: var(--secondary-color);
+}
+
+.text-accent {
+    color: var(--accent-color);
+}
+
+.text-danger {
+    color: var(--danger-color);
+}
+
+.text-dark {
+    color: var(--dark-color);
+}
+
+.text-light {
+    color: var(--text-light-color);
+}
+
+---=== docs/作业要求截图.pdf ===---
+[binary file omitted -- 2.6 MB]
+
+---=== docs/接口.md ===---
+### 1. **数据层接口**
+```javascript
+// core/cinema.js
+class Cinema {
+    constructor(rows, cols, screenPosition) {}
+    getSeat(row, col) {}        // 获取单个座位
+    getRow(row) {}              // 获取整排座位
+    getAllSeats() {}            // 获取所有座位矩阵
+    getAvailableSeats() {}      // 获取可用座位
+}
+// core/seat.js
+class Seat {
+    constructor(row, col) {}
+    setStatus(status) {}        // 设置状态：'available'/'sold'/'selected'
+    setRecommended(isRecommended) {}
+    setHeat(heatLevel) {}       // 设置热度值
+    setScore(score) {}          // 设置评分
+}
+// core/order.js
+class Order {
+    constructor(seatList) {}
+    calculateAmount() {}        // 计算总金额
+    confirm() {}               // 确认订单
+    cancel() {}                 // 取消订单
+}
+```
+### 2. **推荐算法层接口**
+```javascript
+// recommend/recommend.js
+class RecommendEngine {
+    // 主入口：根据用户偏好推荐座位
+    recommend(userPreference, cinema) {
+        // 返回：[Seat, Seat, ...] 推荐座位列表
+    }
+}
+// recommend/score.js
+class ScoreCalculator {
+    calculate(seat) {
+        // 返回：seat.score (0-100)
+    }
+}
+// recommend/rule.js
+class RuleEngine {
+    applyRules(userPreference, seats) {
+        // 返回：过滤后的候选座位列表
+    }
+}
+```
+### 3. **Canvas渲染层接口**
+```javascript
+// canvas/renderer.js
+class CanvasRenderer {
+    constructor(canvasElement, cinema) {}
+
+    render() {}                 // 完整渲染影院
+    renderSeats(seats) {}       // 仅渲染座位
+    renderHeatmap(heatData) {}   // 渲染热力图
+    updateSeat(seat) {}         // 更新单个座位
+}
+// canvas/interaction.js
+class InteractionHandler {
+    constructor(canvasElement, renderer) {}
+
+    onSeatClick(callback) {}    // 座位点击事件
+    onSeatHover(callback) {}    // 悬停事件
+    enableDragSelect(enabled) {} // 启用拖拽选座
+}
+// canvas/heatmap.js
+class HeatmapRenderer {
+    constructor(renderer) {}
+
+    generate(seats) {}         // 生成热力数据
+    render() {}                 // 渲染热力图层
+}
+```
+### 4. **UI层接口**
+```javascript
+// ui/panel.js
+class UIPanel {
+    constructor(container) {}
+
+    // 左侧面板
+    getUserInput() {}           // 返回：UserPreference
+    setRecommendation(seats) {} // 显示推荐结果
+    onRecommendClick(callback) {}
+
+    // 右侧面板
+    setSelectedSeats(seats) {}  // 显示已选座位
+    setOrderInfo(order) {}      // 显示订单信息
+    onPurchaseClick(callback) {}
+}
+// ui/dialog.js
+class DialogManager {
+    showConfirm(message, onConfirm, onCancel) {}
+    showSuccess(message) {}
+    showError(message) {}
+}
+// ui/accessibility.js
+class AccessibilityManager {
+    setFontSize(size) {}       // 'normal'/'large'/'xlarge'
+    setHighContrast(enabled) {}
+    setColorBlindMode(type) {} // 'normal'/'protanopia'/'deuteranopia'
+    enableVoicePrompt(enabled) {}
+}
+```
+### 5. **存储层接口**
+```javascript
+// storage/storage.js
+class StorageManager {
+    saveOrder(order) {}         // 保存订单
+    getOrders() {}              // 获取所有订单
+    deleteOrder(orderId) {}     // 删除订单
+    saveSeatState(seat) {}      // 持久化座位状态
+    loadSeatStates() {}         // 加载座位状态
+}
+```
+---
+### 模块间数据流向
+```
+用户操作
+    ↓
+ui.panel.getUserInput() → UserPreference
+    ↓
+main.js 接收 → recommend.recommend(userPreference, cinema)
+    ↓
+返回推荐座位 → canvas.renderer.updateSeat(seat)
+    ↓
+用户选择 → canvas.interaction.onSeatClick → 更新 Seat.status
+    ↓
+ui.panel.setSelectedSeats(seats) → 显示已选
+    ↓
+用户确认 → order.confirm() → storage.saveOrder(order)
+    ↓
+ui.dialog.showSuccess("购票成功")
+```
+---
+
+---=== docs/说明.md ===---
+# 来水大作业了~~
+
+```
+ /\_/\                            /\_/\
+( -.- ) -------- 水作业~~~~ ----- ( >.< )
+ > ^ <                            > ^ <
+
+```
+
+> 我们选择电影院选座系统开发,这个文档介绍整个项目的架构设计和分工，所有开发应遵循这个文档,**请**(让AI)**仔细阅读**.
+
+---
+
+# 一、功能与界面效果目标
+
+整个系统的流程目标如下：
+
+```
+用户输入需求
+    ↓
+系统智能推荐
+    ↓
+用户选择座位
+    ↓
+生成订单
+    ↓
+完成购票
+```
+
+不要设计很多页面，围绕上面的"快速选座"流程设计即可，作业要求**Don't Make Me Think.**
+
+页面采用如下布局：
+
+```
+┌──────────────────────────────────────────────────────┐
+│ Header                                               │
+├──────────────┬──────────────────────┬────────────────┤
+│              │                      │                │
+│  左侧控制区    │      座位图          │   右侧信息区域   │
+│              │                      │                │
+├──────────────┴──────────────────────┴────────────────┤
+│ Footer                                               │
+└──────────────────────────────────────────────────────┘
+```
+
+具体的：
+
+左侧：
+
+- 用户信息输入
+- 推荐按钮
+- 无障碍设置
+
+中间：
+
+- Canvas影院
+- 座位交互
+- 热力图显示
+
+右侧：
+
+- 推荐信息
+- 当前选座
+- 订单信息
+- 购票操作
+
+---
+
+# 二、整体架构与对象模型
+
+系统架构分层，各层职责单一, 方便大家各自独立推进。
+
+```
+UI层
+↓
+交互层
+↓
+业务逻辑层
+↓
+推荐算法层
+↓
+Canvas渲染层
+↓
+数据层
+↓
+LocalStorage存储
+```
+
+### 整个系统由 main.js 负责调用，其余层彼此之间-不允许-相互调用!!! (>ᴗ<)
+
+正确流程：
+
+```
+main
+    │
+    ├── recommend
+    ├── canvas
+    ├── storage
+    └── ui
+    ...
+```
+
+错误流程：
+
+```
+recommend
+↓
+canvas
+↓
+canvas
+↓
+storage
+↓
+storage
+↓
+ui
+```
+
+---
+
+整个项目包含四种核心对象。
+
+## Cinema
+
+表示整个影院。
+
+包含：
+
+- 行数
+- 列数
+- 屏幕位置
+- 所有座位
+
+Canvas绘制影院时读取Cinema。
+推荐算法也读取Cinema。
+
+## Seat
+
+表示一个座位。
+
+包含：
+
+- 行号
+- 列号
+- 当前状态（空闲/已售/已选）
+- 是否推荐
+- 热度
+- 评分
+- 价格
+
+**Seat全局唯一**, Canvas、推荐、订单全部操作同一个Seat对象，**不允许复制数据**。
+
+## UserPreference
+
+表示用户输入。
+
+包含：
+
+- 年龄
+- 人数
+- 观影类型
+- 是否开启无障碍模式
+- （可扩展预算等）
+
+推荐算法只读取UserPreference。
+
+## Order
+
+表示订单。
+
+包含：
+
+- 订单编号
+- 座位列表
+- 金额
+- 时间
+- 状态
+
+LocalStorage最终保存Order。
+
+---
+
+# 三、文件结构
+
+整个项目结构如下, **如果有修改意见请早一点说明**,方便大家互不干扰的开发,毕竟大家大概率不想分工完了写了一半发现要从头开始.(T_T)
+下面会对每一个部分详细说明.**请一定**(让AI)**仔细阅读**
+
+```
+      |\__/|   ( \
+   _.( > <  )___ ) )
+  -(((---(((--------
+
+SmartCinema/
+
+│
+├── index.html
+│
+├── css
+│   ├── base.css
+│   ├── layout.css
+│   ├── component.css
+│   ├── responsive.css
+│   └── theme.css
+│
+├── js
+│   │
+│   ├── app
+│   │      main.js
+│   │
+│   ├── core
+│   │      cinema.js
+│   │      seat.js
+│   │      order.js
+│   │
+│   ├── canvas
+│   │      renderer.js
+│   │      interaction.js
+│   │      heatmap.js
+│   │
+│   ├── recommend
+│   │      recommend.js
+│   │      score.js
+│   │      rule.js
+│   │
+│   ├── storage
+│   │      storage.js
+│   │
+│   ├── ui
+│   │      panel.js
+│   │      dialog.js
+│   │      accessibility.js
+│   │
+│   ├── utils
+│   │      config.js
+│   │      math.js
+│   │      eventBus.js
+│   │
+│   └── data
+│          cinemaData.js
+│
+├── assets
+│
+├── docs
+│
+└── README.md
+```
+
+## app
+
+整个项目入口。
+
+负责：
+
+- 初始化项目
+- 初始化数据
+- 注册事件
+- 协调各模块工作
+
+不负责任何具体业务逻辑。
+
+#### app/main.js
+
+整个系统的控制中心，只做流程调度。
+
+**负责**
+
+- 初始化 Cinema（从 data 读取）
+
+- 初始化 UI
+
+- 绑定事件监听
+
+- 调用 recommend 获取推荐结果
+
+- 调用 canvas 更新画面
+
+- 调用 storage 保存订单
+
+- 协调所有模块数据流
+
+**禁止**
+
+- 写推荐算法
+
+- 写Canvas绘制逻辑
+
+- 写UI组件细节
+
+- 直接操作LocalStorage
+
+---
+
+## core
+
+对象模型定义。
+
+- 影院Cinema
+- 座位Seat
+- 订单Order
+
+#### core/cinema.js
+
+定义影院结构Cinema。
+
+**负责**
+
+- 创建影院结构
+- 初始化行列信息
+- 管理座位矩阵
+- 提供基础查询接口（如获取某一行座位）
+
+**禁止**
+
+- 涉及UI
+- 涉及推荐逻辑
+- 直接渲染Canvas
+
+#### core/seat.js
+
+定义座位对象结构Seat, 且**全局唯一**。
+
+**包含字段**
+
+- row / col
+- status（空闲 / 已售 / 已选）
+- heat（热度）
+- score（评分）
+- isRecommended（是否推荐）
+- price
+
+**禁止**
+
+- 修改UI
+- 计算推荐
+- 保存数据
+
+#### core/order.js
+
+定义订单对象结构Order。
+
+**负责**
+
+- 订单对象生成规则
+- 订单字段定义
+- 状态管理（已购 / 已取消）
+
+**禁止**
+
+- 操作Seat
+- 直接存储（应当storage负责）
+
+---
+
+## canvas
+
+电影院Canvas绘制。
+
+包括：
+
+- 绘制银幕
+- 绘制座位
+- 绘制文字
+- 绘制热力图
+- 点击交互
+- Hover效果
+- 拖拽（加分项）
+
+只画，不负责推荐算法，不负责订单。
+
+#### canvas/renderer.js
+
+画一切可见内容。
+
+**接受输入**：
+
+- Cinema
+- Seat列表
+
+**负责**
+
+- 影院屏幕绘制
+- 座位绘制
+- 座位状态颜色（空闲/选中/已售/推荐）
+- 文字渲染
+
+**禁止**
+
+- 做推荐
+- 处理点击逻辑（interaction负责）
+- 操作数据存储
+
+#### canvas/interaction.js
+
+处理Canvas上的用户交互。
+
+**负责**
+
+包括：
+
+- 点击座位
+- 多选座位
+- hover反馈
+- 拖拽选座（加分项）
+- 输出“用户选中了哪个Seat”的事件
+
+**禁止**
+
+- 画图
+- 计算推荐
+- 存储数据
+
+#### canvas/heatmap.js
+
+生成和绘制热力图。
+
+**负责**
+
+- 座位热度计算展示
+- 区域热度颜色映射（红/黄/绿）
+- 热门区域提示(热度数据来源于 Seat.heat)
+
+---
+
+## recommend
+
+负责智能推荐。
+
+包括：
+
+- 推荐算法
+- 推荐规则
+- 评分计算
+- 推荐理由
+
+推荐算法最终输出推荐座位列表, 交由Canvas显示。
+
+#### recommend/recommend.js
+
+智能推荐入口函数。
+
+**负责**
+
+- 接收 UserPreference + Cinema
+
+- 调用 rule + score
+
+- 输出推荐座位列表
+
+**输出**
+
+- [Seat, Seat, Seat]
+
+**禁止**
+
+- 操作Canvas
+
+- 修改UI
+
+- 保存订单
+
+#### recommend/rule.js
+
+定义“规则层”,也就是各种条件判断。
+
+- 青少年避开前排
+
+- 老人避开后排
+
+- 情侣推荐中间双座
+
+- 团体推荐连续座位
+
+#### recommend/score.js
+
+**负责**
+
+给每个Seat打分。
+
+评分维度：
+
+- 视角
+
+- 距离
+
+- 舒适度
+
+- 周围空位
+
+**输出**
+
+- seat.score = 0 ~ 100
+
+---
+
+## storage
+
+负责：
+
+- LocalStorage
+- 数据保存
+- 数据读取
+- 订单保存
+- 订单删除
+
+不负责UI。
+
+#### storage/storage.js
+
+本地存储管理（LocalStorage）
+
+**负责**
+
+- 保存订单
+
+- 读取订单
+
+- 删除订单
+
+- 持久化Seat状态（可选）
+
+**禁止**
+
+- 做UI
+
+- 做推荐
+
+- 处理Canvas
+
+---
+
+## ui
+
+负责所有界面。
+
+包括：
+
+- 面板
+- 弹窗
+- 无障碍模式
+- 字体切换
+- 高对比度
+- 色盲模式
+
+只显示，不负责逻辑。
+
+#### ui/panel.js
+
+左侧/右侧控制面板
+
+**负责**
+
+- 用户输入表单
+
+- 推荐按钮
+
+- 当前选座展示
+
+- 操作按钮
+
+**输出**
+
+- 用户输入数据（UserPreference）
+
+#### ui/dialog.js
+
+弹窗系统
+
+**负责**
+
+- 确认购票弹窗
+
+- 提示弹窗
+
+- 错误提示
+
+#### ui/accessibility.js
+
+无障碍模式控制
+
+**负责**
+
+- 字体放大
+
+- 高对比度模式
+
+- 色盲模式
+
+- 简化UI模式
+
+---
+
+## utils
+
+公共工具。
+
+例如：
+
+- 数学函数
+- 配置
+- 常量
+- 通用工具函数
+
+所有模块都可以调用。
+
+#### utils/config.js
+
+全局配置文件
+
+**负责**
+
+- 座位大小
+
+- Canvas尺寸
+
+- 颜色配置
+
+- 推荐权重参数
+
+- ......
+
+#### utils/math.js
+
+通用数学工具
+
+**负责**
+
+- 距离计算
+
+- 权重计算
+
+- 坐标转换
+- ......
+
+#### utils/eventBus.js
+
+降低 main.js 的复杂度，避免其充斥大量回调函数, 负责模块间的解耦通信。
+
+**负责**
+
+- 提供全局事件监听 (`on`)
+- 提供全局事件触发 (`emit`)
+- 实现 UI层、Canvas层、业务逻辑层之间的消息传递
+
+**使用规范**
+
+- UI层：监听用户操作，emit `user-input-change` 等事件。
+- Canvas层：监听画布点击，emit `seat-click` 事件。
+- Main层：on 监听上述事件，调用业务逻辑，再调用其他层更新。
+
+**禁止**
+
+- 业务逻辑层（Recommend/Order）直接使用 EventBus，它们应保持纯函数特性，由 Main 调用。
+
+---
+
+## data
+
+提供初始影院数据
+
+#### data/cinemaData.js
+
+初始化数据源
+
+**负责**
+
+- 初始影院座位布局
+
+- 默认已售座位
+
+- 默认热度分布
+
+---
+
+## 猫
+
+**负责**
+
+- 可爱
+
+---
+
+# 四、分工
+
+#### ① 整体部分（组长）
+
+- 项目框架
+- 页面骨架
+- 数据模型
+- main.js协调
+- Git维护
+- 最终联调
+
+| 负责文件                    | 具体内容                                                             |
+| :-------------------------- | :------------------------------------------------------------------- |
+| **`js/app/main.js`**        | 核心调度中心。初始化所有模块、监听 EventBus、协调数据流向。          |
+| **`js/core/`**              | 数据模型定义。                                                       |
+| **`js/data/cinemaData.js`** | 定义影院的行列数、初始已售座位、默认热度分布。                       |
+| **`js/utils/config.js`**    | 全局配置。座位大小、Canvas尺寸、颜色主题变量、推荐算法的权重参数等。 |
+| **`js/utils/eventBus.js`**  | 基础设施。提供事件监听与触发机制。                                   |
+| **`js/utils/math.js`**      | 通用工具。提供坐标转换、距离计算等工具函数。                         |
+| **`index.html`**            | 页面骨架。编写 HTML 结构，划分 Left/Center/Right 区域。              |
+| **`css/layout.css`**        | 页面布局。编写 Flex 布局、响应式大体框架。                           |
+
+---
+
+#### ② Canvas部分
+
+- 影院绘制
+- 点击交互
+- 拖拽
+- 热力图
+
+> 只负责“画”和“发事件”，**不要**修改 Seat 的数据，**不要**写推荐逻辑。
+
+| 负责文件                       | 具体内容                                                                                                               |
+| :----------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
+| **`js/canvas/renderer.js`**    | 渲染核心。负责绘制银幕、遍历 `Cinema` 对象绘制所有座位、根据 `Seat.status` 映射颜色、绘制推荐标记。                    |
+| **`js/canvas/interaction.js`** | 交互捕捉。监听 Canvas 的 click/mousemove 事件，计算点击坐标对应的 `Seat` 对象，触发 `onSeatClick` 回调。实现拖拽选座。 |
+| **`js/canvas/heatmap.js`**     | 热力图。读取 `Seat.heat` 数据，绘制红/黄/绿叠加层。                                                                    |
+
+---
+
+#### ③ 推荐算法部分
+
+- 推荐规则
+- 评分系统
+- 推荐理由
+
+> 只负责“算”，**不要**操作 Canvas，**不要**直接修改 UI。
+
+| 负责文件                        | 具体内容                                                                               |
+| :------------------------------ | :------------------------------------------------------------------------------------- |
+| **`js/recommend/recommend.js`** | 入口逻辑。接收 `UserPreference` 和 `Cinema`，调用规则和评分，返回推荐座位列表。        |
+| **`js/recommend/rule.js`**      | 规则层。编写硬性过滤规则（如：青少年避开前三排、情侣找连座、老人避开后排）。           |
+| **`js/recommend/score.js`**     | 评分层。编写软性评分逻辑（视角权重、距离权重、舒适度计算），最终给 Seat 打分 (0-100)。 |
+
+---
+
+#### ④ UI与订单部分
+
+- ui
+- storage
+- 响应式
+- 无障碍模式
+- 订单管理
+
+| 负责文件                     | 具体工作内容                                                                                                                   |
+| :--------------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
+| **`js/ui/panel.js`**         | 双面板控制。<br>1. 左侧：读取用户输入（年龄、人数），触发推荐事件。<br>2. 右侧：展示推荐结果列表、展示已选座位、触发购票事件。 |
+| **`js/ui/dialog.js`**        | 弹窗系统。实现购票确认弹窗、成功/失败提示弹窗。                                                                                |
+| **`js/ui/accessibility.js`** | 无障碍。控制字体放大、高对比度模式、色盲模式的 CSS 类切换。                                                                    |
+| **`js/storage/storage.js`**  | 存储。将 `Order` 对象存入 LocalStorage，读取历史订单。                                                                         |
+| **`css/theme.css`**          | 视觉风格。配合无障碍功能，定义 CSS 变量（颜色）、色盲模式的覆盖样式。                                                          |
+| **`css/component.css`**      | 组件样式。定义按钮、卡片、输入框的具体样式。                                                                                   |
+| **`css/responsive.css`**     | 响应式细节。调整不同屏幕下的字体大小、间距。                                                                                   |
+
+---
+
+```
+ /\_/\                              /\_/\
+( -.- ) ------- 好好睡觉和吃饭 ----- ( >.< )
+ > ^ <                              > ^ <
+
+```
+
+---=== js/app/main.js ===---
+import { Cinema } from "../core/cinema.js";
+import { Order } from "../core/order.js";
+import { CanvasRenderer } from "../canvas/renderer.js";
+import { InteractionHandler } from "../canvas/interaction.js";
+import { HeatmapRenderer } from "../canvas/heatmap.js";
+import { RecommendEngine } from "../recommend/recommend.js";
+import { UIPanel } from "../ui/panel.js";
+import { StorageManager } from "../storage/storage.js";
+import { EventBus } from "../utils/eventBus.js";
+
+class MainController {
+  constructor() {
+
+    this.eventBus = new EventBus();
+    this.selectedSeats = [];
+    this.init();
+  }
+
+  init() {
+    console.log("[Main] App Starting...");
+
+    this.cinema = new Cinema(8, 10, "top");
+    this.storage = new StorageManager();
+
+    this.uiPanel = new UIPanel(
+      document.querySelector(".main-container"),
+      this.eventBus,
+    );
+
+    const canvasEl = this.getElementByIdOrCreate("cinema-canvas");
+
+    this.resizeCanvas(canvasEl);
+    window.addEventListener("resize", () => this.handleResize(canvasEl));
+
+    this.renderer = new CanvasRenderer(canvasEl, this.cinema);
+
+    this.heatmapRenderer = new HeatmapRenderer(this.renderer);
+
+    this.interaction = new InteractionHandler(
+      canvasEl,
+      this.renderer,
+      this.eventBus,
+    );
+
+    this.recommendEngine = new RecommendEngine();
+
+    this.registerEvents();
+
+    this.renderer.render();
+  }
+
+  getElementByIdOrCreate(id) {
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement("canvas");
+      el.id = id;
+      document.querySelector(".cinema-container").appendChild(el);
+    }
+    return el;
+  }
+
+  handleResize(canvasEl) {
+    this.resizeCanvas(canvasEl);
+
+    this.renderer.render();
+    this.heatmapRenderer.render(); 
+  }
+
+  resizeCanvas(canvasEl) {
+
+    const container = document.querySelector(".cinema-container");
+    if (container) {
+      canvasEl.width = container.clientWidth;
+
+      canvasEl.height = Math.min(container.clientWidth * 0.6, 600);
+    }
+  }
+
+  registerEvents() {
+
+    this.eventBus.on("user:recommend", (userPref) => {
+      console.log("[Main] Received user:recommend event", userPref);
+      const seats = this.recommendEngine.recommend(userPref, this.cinema);
+
+      seats.forEach((s) => s.setRecommended(true));
+
+      this.renderer.renderSeats(seats);
+      this.heatmapRenderer.generate(seats); 
+      this.heatmapRenderer.render(); 
+      this.uiPanel.setRecommendation(seats);
+    });
+
+    this.eventBus.on("seat:clicked", (seat) => {
+      console.log("[Main] Received seat:clicked event", seat);
+
+      if (seat.status === "available") {
+        seat.setStatus("selected");
+        this.selectedSeats.push(seat);
+
+        this.renderer.updateSeat(seat);
+        this.uiPanel.setSelectedSeats(this.selectedSeats);
+      } else if (seat.status === "selected") {
+
+        seat.setStatus("available");
+        this.selectedSeats = this.selectedSeats.filter((s) => s !== seat);
+        this.renderer.updateSeat(seat);
+        this.uiPanel.setSelectedSeats(this.selectedSeats);
+      }
+    });
+
+    this.eventBus.on("user:purchase", () => {
+      console.log("[Main] Received user:purchase event");
+      if (this.selectedSeats.length === 0) return;
+
+      const order = new Order(this.selectedSeats);
+      order.calculateAmount();
+
+      this.storage.saveOrder(order);
+
+      this.uiPanel.setOrderInfo(order);
+
+      this.selectedSeats.forEach((s) => s.setStatus("sold"));
+      this.renderer.renderSeats(this.selectedSeats);
+
+      this.selectedSeats = [];
+      this.uiPanel.setSelectedSeats([]);
+    });
+
+    this.eventBus.on("accessibility:change", (config) => {
+      console.log("[Main] Accessibility settings changed", config);
+
+      this.renderer.render();
+    });
+  }
+}
+
+new MainController();
+
+---=== js/canvas/heatmap.js ===---
+export class HeatmapRenderer {
+  constructor(renderer) {
+    this.renderer = renderer;
+    this.heatData = [];
+    console.log("[Canvas] HeatmapRenderer created");
+  }
+
+  generate(seats) {
+    console.log("[Canvas] Heatmap generating data...");
+    this.heatData = seats.map((seat) => ({
+      row: seat.row,
+      col: seat.col,
+      value: Math.random(), 
+    }));
+  }
+
+  render() {
+    console.log("[Canvas] Heatmap rendering layer");
+    const ctx = this.renderer.ctx;
+  }
+}
+
+---=== js/canvas/interaction.js ===---
+export class InteractionHandler {
+  constructor(canvasElement, renderer, eventBus) {
+    this.canvas = canvasElement;
+    this.renderer = renderer;
+    this.eventBus = eventBus;
+    this.isDragging = false;
+
+    console.log("[Canvas] InteractionHandler created");
+    this.canvas.addEventListener("click", (e) => this.handleClick(e));
+  }
+
+  handleClick(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const mockSeat = this.renderer.cinema.getSeat(0, 0);
+    this.eventBus.emit("seat:clicked", mockSeat);
+  }
+
+  enableDragSelect(enabled) {
+    console.log(`[Canvas] enableDragSelect -> ${enabled}`);
+  }
+}
+
+---=== js/canvas/renderer.js ===---
+export class CanvasRenderer {
+
+  constructor(canvasElement, cinema) {
+    this.canvas = canvasElement;
+    this.cinema = cinema;
+    this.ctx = this.canvas.getContext("2d");
+    console.log("[Canvas] Renderer created");
+  }
+
+  render() {
+    console.log("[Canvas] render full cinema");
+
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  renderSeats(seats) {
+    console.log(`[Canvas] renderSeats count: ${seats.length}`);
+  }
+
+  renderHeatmap(heatData) {
+    console.log("[Canvas] renderHeatmap");
+  }
+
+  updateSeat(seat) {
+    console.log(`[Canvas] updateSeat(${seat.row},${seat.col})`);
+  }
+}
+
+---=== js/core/cinema.js ===---
+import { Seat } from "./seat.js";
+
+export class Cinema {
+  constructor(rows, cols, screenPosition) {
+    console.log("[Core] Cinema Initializing...");
+    this.rows = rows;
+    this.cols = cols;
+    this.screenPosition = screenPosition;
+    this.seats = [];
+    this._initSeats();
+  }
+
+  _initSeats() {
+    for (let r = 0; r < this.rows; r++) {
+      this.seats[r] = [];
+      for (let c = 0; c < this.cols; c++) {
+        this.seats[r][c] = new Seat(r, c);
+      }
+    }
+  }
+
+  getSeat(row, col) {
+    console.log(`[Core] Cinema getSeat(${row}, ${col})`);
+    if (row >= 0 && row < this.rows && col >= 0 && col < this.cols) {
+      return this.seats[row][col];
+    }
+    return null;
+  }
+
+  getRow(row) {
+    console.log(`[Core] Cinema getRow(${row})`);
+    if (row >= 0 && row < this.rows) {
+      return this.seats[row];
+    }
+    return [];
+  }
+
+  getAllSeats() {
+    console.log("[Core] Cinema getAllSeats");
+    return this.seats.flat();
+  }
+
+  getAvailableSeats() {
+    console.log("[Core] Cinema getAvailableSeats");
+    return this.getAllSeats().filter((s) => s.status === "available");
+  }
+}
+
+---=== js/core/order.js ===---
+export class Order {
+  constructor(seatList) {
+    this.seatList = seatList;
+    this.amount = 0;
+    this.status = "pending"; 
+    console.log("[Core] Order created.");
+  }
+
+  calculateAmount() {
+    console.log("[Core] Order calculateAmount");
+
+    this.amount = this.seatList.length * 50;
+    return this.amount;
+  }
+
+  confirm() {
+    console.log("[Core] Order confirm");
+    this.status = "paid";
+  }
+
+  cancel() {
+    console.log("[Core] Order cancel");
+    this.status = "cancelled";
+  }
+}
+
+---=== js/core/seat.js ===---
+export class Seat {
+  constructor(row, col) {
+    this.row = row;
+    this.col = col;
+    this.status = "available"; 
+    this.isRecommended = false;
+    this.heat = 0; 
+    this.score = 0; 
+    this.price = 0; 
+    console.log(`[Core] Seat(${row}, ${col}) created.`);
+  }
+
+  setStatus(status) {
+    console.log(`[Core] Seat(${this.row}, ${this.col}) setStatus -> ${status}`);
+    this.status = status;
+  }
+
+  setRecommended(isRecommended) {
+    console.log(
+      `[Core] Seat(${this.row}, ${this.col}) setRecommended -> ${isRecommended}`,
+    );
+    this.isRecommended = isRecommended;
+  }
+
+  setHeat(heatLevel) {
+    console.log(
+      `[Core] Seat(${this.row}, ${this.col}) setHeat -> ${heatLevel}`,
+    );
+    this.heat = heatLevel;
+  }
+
+  setScore(score) {
+    console.log(`[Core] Seat(${this.row}, ${this.col}) setScore -> ${score}`);
+    this.score = score;
+  }
+}
+
+---=== js/data/cinemaData.js ===---
+export default {
+  rows: 8,
+  cols: 10,
+  soldSeats: [{ row: 0, col: 0 }], 
+};
+
+---=== js/recommend/recommend.js ===---
+import { RuleEngine } from "./rule.js";
+import { ScoreCalculator } from "./score.js";
+
+export class RecommendEngine {
+  constructor() {
+    this.ruleEngine = new RuleEngine();
+    this.scoreCalculator = new ScoreCalculator();
+    console.log("[Recommend] Engine created");
+  }
+
+  recommend(userPreference, cinema) {
+    console.log("[Recommend] recommend called", userPreference);
+    let seats = cinema.getAvailableSeats();
+
+    seats = this.ruleEngine.applyRules(userPreference, seats);
+
+    seats.forEach((s) => {
+
+      const score = this.scoreCalculator.calculate(s);
+      s.setScore(score);
+    });
+
+    return seats;
+  }
+}
+
+---=== js/recommend/rule.js ===---
+export class RuleEngine {
+  constructor() {
+    console.log("[Recommend] RuleEngine created");
+  }
+
+  applyRules(userPreference, seats) {
+    console.log("[Recommend] applyRules called", userPreference);
+    return seats;
+  }
+}
+
+---=== js/recommend/score.js ===---
+export class ScoreCalculator {
+  constructor() {
+    console.log("[Recommend] ScoreCalculator created");
+  }
+
+  calculate(seat) {
+    console.log(
+      `[Recommend] calculate score for Seat(${seat.row},${seat.col})`,
+    );
+    return Math.floor(Math.random() * 100);
+  }
+}
+
+---=== js/storage/storage.js ===---
+export class StorageManager {
+  constructor() {
+    console.log("[Storage] Manager created");
+  }
+
+  saveOrder(order) {
+    console.log(`[Storage] saveOrder: ${order.id || "mock"}`);
+  }
+
+  getOrders() {
+    console.log("[Storage] getOrders");
+    return [];
+  }
+
+  deleteOrder(orderId) {
+    console.log(`[Storage] deleteOrder: ${orderId}`);
+  }
+
+  saveSeatState(seat) {
+    console.log(`[Storage] saveSeatState: ${seat.row},${seat.col}`);
+  }
+
+  loadSeatStates() {
+    console.log("[Storage] loadSeatStates");
+    return [];
+  }
+}
+
+---=== js/ui/accessibility.js ===---
+export class AccessibilityManager {
+  constructor(eventBus) {
+    this.eventBus = eventBus;
+    this.config = {
+      fontSize: "normal", 
+      highContrast: false,
+      colorBlindMode: "normal", 
+    };
+  }
+
+  _updateClasses() {
+    document.body.className = ""; 
+    if (this.config.fontSize !== "normal") {
+      document.body.classList.add(`accessibility-${this.config.fontSize}-font`);
+    }
+    if (this.config.highContrast) {
+      document.body.classList.add("accessibility-high-contrast");
+    }
+    if (this.config.colorBlindMode !== "normal") {
+      document.body.classList.add(
+        `accessibility-${this.config.colorBlindMode}`,
+      );
+    }
+
+    this.eventBus.emit("accessibility:change", this.config);
+  }
+
+  setFontSize(size) {
+
+    console.log(`[UI] Accessibility setFontSize: ${size}`);
+    this.config.fontSize = size;
+    this._updateClasses();
+  }
+
+  setHighContrast(enabled) {
+    console.log(`[UI] Accessibility setHighContrast: ${enabled}`);
+    this.config.highContrast = enabled;
+    this._updateClasses();
+  }
+
+  setColorBlindMode(type) {
+
+    console.log(`[UI] Accessibility setColorBlindMode: ${type}`);
+    this.config.colorBlindMode = type;
+    this._updateClasses();
+  }
+
+  enableVoicePrompt(enabled) {
+    console.log(`[UI] Accessibility enableVoicePrompt: ${enabled}`);
+    if (enabled) {
+
+    }
+  }
+}
+
+---=== js/ui/dialog.js ===---
+export class DialogManager {
+  showConfirm(msg) {
+    console.log(`[UI] Dialog: ${msg}`);
+    return confirm(msg); 
+  }
+}
+
+---=== js/ui/panel.js ===---
+export class UIPanel {
+  constructor(container, eventBus) {
+    this.container = container;
+    this.eventBus = eventBus; 
+    console.log("[UI] Panel created");
+
+    this.bindDOMEvents();
+  }
+
+  bindDOMEvents() {
+    const recommendBtn = this.container.querySelector("#recommend-btn");
+    if (recommendBtn) {
+      recommendBtn.addEventListener("click", () => {
+        const userInput = this.getUserInput();
+
+        this.eventBus.emit("user:recommend", userInput);
+      });
+    }
+
+    const purchaseBtn = this.container.querySelector("#purchase-btn");
+    if (purchaseBtn) {
+      purchaseBtn.addEventListener("click", () => {
+        this.eventBus.emit("user:purchase");
+      });
+    }
+  }
+
+  getUserInput() {
+    console.log("[UI] getUserInput");
+    const ageSelect = document.getElementById("age-select");
+    const countInput = document.getElementById("people-count");
+
+    return {
+      age: ageSelect ? ageSelect.value : "adult",
+      count: countInput ? parseInt(countInput.value) : 2,
+      type: "action",
+    };
+  }
+
+  setRecommendation(seats) {
+    const resultDiv = document.getElementById("recommend-result");
+    resultDiv.innerHTML = `<p>推荐座位: ${seats.map((s) => `${s.row}排${s.col}座`).join(", ")}</p>`;
+  }
+
+  setSelectedSeats(seats) {
+    const selectedDiv = document.getElementById("selected-seats");
+    selectedDiv.innerHTML = `<p>已选: ${seats.map((s) => `${s.row}排${s.col}座`).join(", ")}</p>`;
+
+    const purchaseBtn = document.getElementById("purchase-btn");
+    if (purchaseBtn) purchaseBtn.disabled = seats.length === 0;
+  }
+
+  setOrderInfo(order) {
+    const orderDiv = document.getElementById("order-info");
+    orderDiv.innerHTML = `<p>订单成功! 总额: ¥${order.amount}</p>`;
+  }
+}
+
+---=== js/utils/config.js ===---
+export const AppConfig = {
+  cinema: { rows: 10, cols: 12 },
+  seat: { size: 30, margin: 5 },
+  colors: { free: "green", selected: "blue", sold: "red" },
+};
+
+---=== js/utils/eventBus.js ===---
+export class EventBus {
+  constructor() {
+    this.events = {};
+  }
+  on(eventName, callback) {
+    if (!this.events[eventName]) this.events[eventName] = [];
+    this.events[eventName].push(callback);
+  }
+  emit(eventName, payload) {
+    if (this.events[eventName]) {
+      this.events[eventName].forEach((cb) => cb(payload));
+    }
+  }
+}
+
+---=== js/utils/math.js ===---
+export const MathUtils = {
+  distance: (x1, y1, x2, y2) =>
+    Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)),
+};

@@ -1,0 +1,125 @@
+/* 组件特定样式 */
+
+/* 左侧控制面板组件 */
+.user-info-form {
+    margin-bottom: 20px;
+}
+
+.recommend-btn {
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+.accessibility-controls {
+    margin-top: 20px;
+}
+
+/* 座位图组件 */
+.seat-canvas {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fff;
+}
+
+/* 右侧信息面板组件 */
+.recommendation-info {
+    margin-bottom: 20px;
+}
+
+.selected-seats {
+    margin-bottom: 20px;
+}
+
+.order-info {
+    margin-bottom: 20px;
+}
+
+.purchase-btn {
+    width: 100%;
+}
+
+/* 对话框组件 */
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.dialog-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 500px;
+    width: 90%;
+}
+
+.dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.dialog-close {
+    cursor: pointer;
+    font-size: 20px;
+}
+
+/* 座位状态样式 */
+.seat {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.seat:hover {
+    opacity: 0.8;
+}
+
+.seat.free {
+    background-color: #4CAF50;
+}
+
+.seat.sold {
+    background-color: #F44336;
+    cursor: not-allowed;
+}
+
+.seat.selected {
+    background-color: #2196F3;
+}
+
+.seat.recommended {
+    background-color: #FFC107;
+    border: 2px solid #FF9800;
+}
+
+/* 热力图样式 */
+.heatmap-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+.heatmap-cell {
+    position: absolute;
+}
+
+.heatmap-hot {
+    background-color: rgba(255, 0, 0, 0.3);
+}
+
+.heatmap-warm {
+    background-color: rgba(255, 165, 0, 0.3);
+}
+
+.heatmap-cold {
+    background-color: rgba(0, 0, 255, 0.3);
+}
