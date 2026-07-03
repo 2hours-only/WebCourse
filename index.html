@@ -3,67 +3,87 @@
   <head>
     <meta charset="UTF-8" />
     <title>SmartCinema Skeleton</title>
-    <style>
-      /* 简单布局，确保容器存在 */
-      .main-container {
-        display: flex;
-        height: 100vh;
-      }
-      .left-panel {
-        width: 200px;
-        background: #f0f0f0;
-        padding: 10px;
-      }
-      .cinema-container {
-        flex: 1;
-        background: #e9e9e9;
-        position: relative;
-      }
-      .right-panel {
-        width: 250px;
-        background: #f0f0f0;
-        padding: 10px;
-      }
-      .hidden {
-        display: none;
-      }
-    </style>
+    <link rel="stylesheet" href="./css/base.css" />
+    <link rel="stylesheet" href="./css/layout.css" />
+    <link rel="stylesheet" href="./css/component.css" />
+    <link rel="stylesheet" href="./css/responsive.css" />
+    <link rel="stylesheet" href="./css/theme.css" />
   </head>
   <body>
     <div id="app">
-      <div class="main-container">
-        <!-- 左侧：用户输入 -->
+      <!-- 默认显示登录层 -->
+      <div id="login-layer">
+        <div class="login-box">
+          <h2>用户登录</h2>
+          <input id="login-username" type="text" placeholder="用户名" />
+          <input id="login-password" type="password" placeholder="密码" />
+          <button id="login-btn">登录</button>
+          <button id="register-btn">注册</button>
+        </div>
+      </div>
+
+      <!-- 默认隐藏主界面 -->
+      <div class="main-container hidden">
         <div class="left-panel">
+          <div id="hall-selection-area">
+            <label>选择放映厅：</label>
+            <select id="hall-select">
+              <option value="small">小厅 (100座)</option>
+              <option value="medium">中厅 (200座)</option>
+              <option value="large">大厅 (300座)</option>
+            </select>
+          </div>
+
           <div id="user-input-area">
             <p>用户输入区</p>
             <select id="age-select">
               <option value="adult">成人</option>
+              <option value="teenager">少年 (15岁以下)</option>
+              <option value="elderly">老年人 (60岁以上)</option>
+            </select>
+            <select id="type-select">
+              <option value="personal">个人票</option>
+              <option value="couple">情侣票</option>
+              <option value="family">家庭票</option>
+              <option value="group">团体票</option>
             </select>
             <input
               id="people-count"
               type="number"
               value="2"
               placeholder="人数"
+              min="1"
             />
-            <button id="recommend-btn">智能推荐</button>
+
+            <div id="member-info-area" class="hidden">
+              <p>团体成员信息 (格式: 姓名:年龄,逗号分隔)</p>
+              <textarea
+                id="member-info"
+                rows="4"
+                placeholder="如: 张三:20, 李四:12, 王五:65"
+              ></textarea>
+            </div>
+
+            <button id="recommend-btn" class="btn btn-primary">智能推荐</button>
           </div>
+
           <div id="accessibility-area">
             <h4>无障碍</h4>
-            <button id="font-toggle">大字体</button>
+            <button id="font-toggle" class="btn btn-secondary">大字体</button>
           </div>
         </div>
 
-        <!-- 中间：Canvas -->
         <div class="cinema-container">
           <canvas id="cinema-canvas"></canvas>
         </div>
 
-        <!-- 右侧：选座与订单 -->
         <div class="right-panel">
           <div id="recommend-result"><p>推荐结果</p></div>
           <div id="selected-seats"><p>已选座位</p></div>
           <div id="order-info"><p>订单信息</p></div>
-          <button id="purchase-btn" disabled>购票</button>
+          <button id="purchase-btn" class="btn btn-primary" disabled>
+            购票
+          </button>
         </div>
       </div>
     </div>

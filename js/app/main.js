@@ -1,157 +1,263 @@
 import { Cinema } from "../core/cinema.js";
+import { User } from "../core/user.js";
 import { Order } from "../core/order.js";
 import { CanvasRenderer } from "../canvas/renderer.js";
 import { InteractionHandler } from "../canvas/interaction.js";
 import { HeatmapRenderer } from "../canvas/heatmap.js";
 import { RecommendEngine } from "../recommend/recommend.js";
 import { UIPanel } from "../ui/panel.js";
+import { DialogManager } from "../ui/dialog.js";
+import { AccessibilityManager } from "../ui/accessibility.js";
 import { StorageManager } from "../storage/storage.js";
 import { EventBus } from "../utils/eventBus.js";
+import cinemaData from "../data/cinemaData.js";
 
 class MainController {
   constructor() {
-    // 1. 初始化全局事件总线
     this.eventBus = new EventBus();
     this.selectedSeats = [];
+    this.dialogManager = new DialogManager();
     this.init();
   }
 
   init() {
     console.log("[Main] App Starting...");
-
-    // 初始化数据层
-    this.cinema = new Cinema(8, 10, "top");
     this.storage = new StorageManager();
-
-    // 初始化 UI 层 (注入 eventBus 供其发送消息)
     this.uiPanel = new UIPanel(
       document.querySelector(".main-container"),
       this.eventBus,
     );
 
-    // 初始化 Canvas 层
-    const canvasEl = this.getElementByIdOrCreate("cinema-canvas");
-
-    // 响应式处理：初始化 Canvas 尺寸
-    this.resizeCanvas(canvasEl);
-    window.addEventListener("resize", () => this.handleResize(canvasEl));
-
-    this.renderer = new CanvasRenderer(canvasEl, this.cinema);
-
-    // 热力图层
-    this.heatmapRenderer = new HeatmapRenderer(this.renderer);
-
-    // 交互层 (注入 eventBus 供其发送消息)
-    this.interaction = new InteractionHandler(
-      canvasEl,
-      this.renderer,
-      this.eventBus,
-    );
-
-    // 推荐层
-    this.recommendEngine = new RecommendEngine();
-
-    // 2. 注册事件监听 (Main 层作为唯一的调度中心)
-    this.registerEvents();
-
-    // 3. 初始渲染
-    this.renderer.render();
-  }
-
-  getElementByIdOrCreate(id) {
-    let el = document.getElementById(id);
-    if (!el) {
-      el = document.createElement("canvas");
-      el.id = id;
-      document.querySelector(".cinema-container").appendChild(el);
+    const currentUser = this.storage.getCurrentUser();
+    if (currentUser) {
+      console.log(
+        "[Main] User already logged in:",
+        currentUser.username,
+        currentUser.role,
+      );
+      if (currentUser.role === "admin") {
+        this.initCinemaData("small"); // 需要初始化影院数据以便退票时更新座位状态
+        this.eventBus.emit("admin:view-orders");
+      } else {
+        this.initMainApplication(currentUser);
+      }
+    } else {
+      console.log("[Main] No user found, showing login screen.");
+      this.uiPanel.switchView("login");
     }
-    return el;
+
+    this.registerEvents();
   }
 
-  // --- 响应式架构支持 ---
+  initCinemaData(hallType) {
+    const data = cinemaData[hallType] || cinemaData.small;
+    this.cinema = new Cinema(data.rows, data.cols, "top", data.curvature);
+    if (data.soldSeats || data.heatMap) {
+      this.cinema.reloadHallData(
+        data.rows,
+        data.cols,
+        "top",
+        data.soldSeats,
+        data.heatMap,
+        data.curvature,
+      );
+    }
+    return this.cinema;
+  }
+
+  initMainApplication(user) {
+    this.currentUser = user;
+    this.uiPanel.switchView("main");
+    this.initCinemaData("small");
+
+    const canvasEl = document.getElementById("cinema-canvas");
+    if (canvasEl) {
+      this.resizeCanvas(canvasEl);
+      window.addEventListener("resize", () => this.handleResize(canvasEl));
+      this.renderer = new CanvasRenderer(canvasEl, this.cinema);
+      this.heatmapRenderer = new HeatmapRenderer(this.renderer);
+      this.interaction = new InteractionHandler(
+        canvasEl,
+        this.renderer,
+        this.eventBus,
+      );
+      this.renderer.render();
+    }
+
+    this.recommendEngine = new RecommendEngine();
+    this.accessibilityManager = new AccessibilityManager(this.eventBus);
+  }
+
   handleResize(canvasEl) {
     this.resizeCanvas(canvasEl);
-    // 重新渲染以适应新尺寸
-    this.renderer.render();
-    this.heatmapRenderer.render(); // 如果热力图是基于绝对位置的，也需要重绘
+    if (this.renderer) this.renderer.render();
+    if (this.heatmapRenderer) this.heatmapRenderer.render();
   }
 
   resizeCanvas(canvasEl) {
-    // 获取容器宽度，动态设置 Canvas 宽度，支持 PC/iPad/手机
     const container = document.querySelector(".cinema-container");
     if (container) {
       canvasEl.width = container.clientWidth;
-      // 保持一定的宽高比，或者固定高度
       canvasEl.height = Math.min(container.clientWidth * 0.6, 600);
     }
   }
-  // ---------------------
 
   registerEvents() {
-    // 监听：用户点击推荐
+    this.eventBus.on("accessibility:toggle-font", () => {
+      if (this.accessibilityManager) {
+        const currentSize = this.accessibilityManager.config.fontSize;
+        this.accessibilityManager.setFontSize(
+          currentSize === "normal" ? "large" : "normal",
+        );
+      }
+    });
+
+    this.eventBus.on("user:login", (loginData) => {
+      console.log("[Main] Received user:login", loginData);
+      const user = this.storage.login(loginData.username, loginData.password);
+      if (user) {
+        if (user.role === "admin") {
+          if (!this.cinema) this.initCinemaData("small");
+          this.eventBus.emit("admin:view-orders");
+        } else {
+          this.initMainApplication(user);
+        }
+      } else {
+        this.dialogManager.showError("登录失败：用户名或密码错误");
+      }
+    });
+
+    // 修复越权登录逻辑
+    this.eventBus.on("user:register", (registerData) => {
+      console.log("[Main] Received user:register", registerData);
+      const existingUser = this.storage.findUser(registerData.username);
+      if (existingUser) {
+        this.dialogManager.showError("注册失败：用户名已存在");
+        return;
+      }
+      const newUser = new User(
+        registerData.username,
+        registerData.password,
+        "user",
+      );
+      this.storage.register(newUser);
+      this.dialogManager.showSuccess("注册成功，请登录");
+    });
+
     this.eventBus.on("user:recommend", (userPref) => {
       console.log("[Main] Received user:recommend event", userPref);
-      const seats = this.recommendEngine.recommend(userPref, this.cinema);
-
-      // 更新数据状态
-      seats.forEach((s) => s.setRecommended(true));
-
-      // 更新视图 (通过 Renderer 和 UI)
-      this.renderer.renderSeats(seats);
-      this.heatmapRenderer.generate(seats); // 计算热力
-      this.heatmapRenderer.render(); // 绘制热力
+      if (!this.cinema) return;
+      const userRatings = this.storage.getUserRatings();
+      const seats = this.recommendEngine.recommend(
+        userPref,
+        this.cinema,
+        userRatings,
+      );
+      if (this.renderer) {
+        this.renderer.renderSeats(seats);
+        if (this.heatmapRenderer) {
+          this.heatmapRenderer.generate(seats);
+          this.heatmapRenderer.render();
+        }
+      }
       this.uiPanel.setRecommendation(seats);
     });
 
-    // 监听：用户点击座位
-    this.eventBus.on("seat:clicked", (seat) => {
-      console.log("[Main] Received seat:clicked event", seat);
+    this.eventBus.on("seat:clicked", (payload) => {
+      console.log("[Main] Received seat:clicked event", payload);
+      const { seat, isMultiSelect, isDragSelect } = payload;
+      if (!seat) return;
 
-      // 业务逻辑判断
       if (seat.status === "available") {
         seat.setStatus("selected");
         this.selectedSeats.push(seat);
-        // 触发 UI 更新
-        this.renderer.updateSeat(seat);
+        if (this.renderer) this.renderer.updateSeat(seat);
         this.uiPanel.setSelectedSeats(this.selectedSeats);
       } else if (seat.status === "selected") {
-        // 支持取消选择
         seat.setStatus("available");
         this.selectedSeats = this.selectedSeats.filter((s) => s !== seat);
-        this.renderer.updateSeat(seat);
+        if (this.renderer) this.renderer.updateSeat(seat);
         this.uiPanel.setSelectedSeats(this.selectedSeats);
       }
     });
 
-    // 监听：用户点击购票
+    this.eventBus.on("seat:rating", (ratingData) => {
+      console.log("[Main] Received seat:rating event", ratingData);
+      const { seatId, rating } = ratingData;
+      this.storage.saveUserRating(seatId, rating);
+      if (this.renderer) this.renderer.render();
+    });
+
     this.eventBus.on("user:purchase", () => {
       console.log("[Main] Received user:purchase event");
-      if (this.selectedSeats.length === 0) return;
-
-      // 生成订单
+      if (this.selectedSeats.length === 0) {
+        this.dialogManager.showError("请先选择座位");
+        return;
+      }
       const order = new Order(this.selectedSeats);
       order.calculateAmount();
-
-      // 保存订单
+      order.confirm();
       this.storage.saveOrder(order);
-
-      // 更新 UI
       this.uiPanel.setOrderInfo(order);
-
-      // 更新座位状态
       this.selectedSeats.forEach((s) => s.setStatus("sold"));
-      this.renderer.renderSeats(this.selectedSeats);
-
-      // 重置
+      if (this.renderer) this.renderer.renderSeats(this.selectedSeats);
       this.selectedSeats = [];
       this.uiPanel.setSelectedSeats([]);
     });
 
-    // 监听：用户切换无障碍模式 (AccessibilityManager 发出的事件)
+    this.eventBus.on("hall:switch", (hallType) => {
+      console.log("[Main] Switching hall to:", hallType);
+      const data = cinemaData[hallType];
+      if (this.cinema && data) {
+        this.cinema.reloadHallData(
+          data.rows,
+          data.cols,
+          "top",
+          data.soldSeats,
+          data.heatMap,
+          data.curvature,
+        );
+        if (this.renderer) this.renderer.render();
+        this.selectedSeats = [];
+        this.uiPanel.setSelectedSeats([]);
+        this.uiPanel.setRecommendation([]);
+      }
+    });
+
+    this.eventBus.on("admin:view-orders", () => {
+      console.log("[Main] Admin viewing orders");
+      const orders = this.storage.getAllOrders();
+      const users = this.storage.getAllUsers();
+      this.uiPanel.renderAdminDashboard(orders, users);
+    });
+
+ 
+    this.eventBus.on("admin:refund-order", (orderId) => {
+      console.log("[Main] Admin refunding order:", orderId);
+      const updatedOrder = this.storage.refundOrder(orderId);
+      if (updatedOrder) {
+        // 仅在Cinema存在时更新座位状态
+        if (this.cinema) {
+          updatedOrder.seatList.forEach((seatData) => {
+            const seat = this.cinema.getSeat(seatData.row, seatData.col);
+            if (seat && seat.status === "sold") {
+              seat.setStatus("available");
+            }
+          });
+        }
+        // 判空保护，管理员后台由于没有渲染Canvas，this.renderer可能不存在
+        if (this.renderer) this.renderer.render();
+
+        this.eventBus.emit("admin:view-orders");
+        this.dialogManager.showSuccess("退票成功");
+      } else {
+        this.dialogManager.showError("退票失败：订单不存在或状态异常");
+      }
+    });
+
     this.eventBus.on("accessibility:change", (config) => {
       console.log("[Main] Accessibility settings changed", config);
-      // 这里可以触发一些 Canvas 内部的重绘逻辑（例如放大图标、改变对比度）
-      this.renderer.render();
+      if (this.renderer) this.renderer.render();
     });
   }
 }

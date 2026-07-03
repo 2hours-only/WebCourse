@@ -1,25 +1,28 @@
 export class Order {
   constructor(seatList) {
+    this.id = Date.now().toString(); // 简单生成ID
     this.seatList = seatList;
     this.amount = 0;
-    this.status = "pending"; // pending / paid / cancelled
+    this.status = "pending"; // pending, paid, cancelled, refunded
+    this.timestamp = new Date().toISOString();
     console.log("[Core] Order created.");
   }
 
   calculateAmount() {
-    console.log("[Core] Order calculateAmount");
-    // Mock logic
     this.amount = this.seatList.length * 50;
     return this.amount;
   }
 
   confirm() {
-    console.log("[Core] Order confirm");
     this.status = "paid";
   }
 
   cancel() {
-    console.log("[Core] Order cancel");
     this.status = "cancelled";
+  }
+
+  refund() {
+    console.log("[Core] Order refunding...");
+    this.status = "refunded";
   }
 }

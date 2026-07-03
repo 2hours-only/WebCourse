@@ -1,11 +1,12 @@
 import { Seat } from "./seat.js";
 
 export class Cinema {
-  constructor(rows, cols, screenPosition) {
+  constructor(rows, cols, screenPosition, curvature = 0.1) {
     console.log("[Core] Cinema Initializing...");
     this.rows = rows;
     this.cols = cols;
     this.screenPosition = screenPosition;
+    this.curvature = curvature; 
     this.seats = [];
     this._initSeats();
   }
@@ -19,8 +20,36 @@ export class Cinema {
     }
   }
 
+  reloadHallData(
+    rows,
+    cols,
+    screenPosition,
+    soldSeats = [],
+    heatMap = [],
+    curvature = 0.1,
+  ) {
+    console.log("[Core] Reloading Hall Data...");
+    this.rows = rows;
+    this.cols = cols;
+    this.screenPosition = screenPosition;
+    this.curvature = curvature; // 更新弧度
+    this.seats = [];
+    this._initSeats();
+
+    soldSeats.forEach((s) => {
+      const seat = this.getSeat(s.row, s.col);
+      if (seat) seat.setStatus("sold");
+    });
+
+    if (heatMap && heatMap.length > 0) {
+      heatMap.forEach((h) => {
+        const seat = this.getSeat(h.row, h.col);
+        if (seat) seat.setHeat(h.value);
+      });
+    }
+  }
+
   getSeat(row, col) {
-    console.log(`[Core] Cinema getSeat(${row}, ${col})`);
     if (row >= 0 && row < this.rows && col >= 0 && col < this.cols) {
       return this.seats[row][col];
     }
@@ -28,7 +57,6 @@ export class Cinema {
   }
 
   getRow(row) {
-    console.log(`[Core] Cinema getRow(${row})`);
     if (row >= 0 && row < this.rows) {
       return this.seats[row];
     }
@@ -36,12 +64,10 @@ export class Cinema {
   }
 
   getAllSeats() {
-    console.log("[Core] Cinema getAllSeats");
     return this.seats.flat();
   }
 
   getAvailableSeats() {
-    console.log("[Core] Cinema getAvailableSeats");
     return this.getAllSeats().filter((s) => s.status === "available");
   }
 }

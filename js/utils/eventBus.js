@@ -11,4 +11,12 @@ export class EventBus {
       this.events[eventName].forEach((cb) => cb(payload));
     }
   }
+  off(eventName, callback) {
+    console.log(`[Utils] EventBus off: ${eventName}`);
+    if (this.events[eventName]) {
+      this.events[eventName] = this.events[eventName].filter(
+        (cb) => cb !== callback,
+      );
+    }
+  }
 }
