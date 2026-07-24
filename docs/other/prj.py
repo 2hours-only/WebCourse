@@ -13,9 +13,6 @@ project_packer.py — 项目打包 / 解包工具
   命令行解包
     python project_packer.py unpack <txt文件路径>
 
-  保留注释打包
-    python project_packer.py pack --keep-comments ["项目描述"]
-
   包含二进制文件内容
     python project_packer.py pack --include-binary ["项目描述"]
 
@@ -886,7 +883,7 @@ if __name__ == "__main__":
         mode = sys.argv[1].lower()
         if mode in ("pack", "1"):
             args = sys.argv[2:]
-            keep_comments = False
+            keep_comments = True
             include_binary = False
             skip_exts = set()
             include_only = set()
