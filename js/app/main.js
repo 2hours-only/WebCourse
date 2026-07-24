@@ -217,7 +217,11 @@ class MainController {
           data.heatMap,
           data.curvature,
         );
-        if (this.renderer) this.renderer.render();
+        // 【修复】更新 renderer 的影厅类型，确保使用正确的弧形参数
+        if (this.renderer) {
+          this.renderer.setHallType(hallType);
+          this.renderer.render();
+        }
         this.selectedSeats = [];
         this.uiPanel.setSelectedSeats([]);
         this.uiPanel.setRecommendation([]);
@@ -231,7 +235,6 @@ class MainController {
       this.uiPanel.renderAdminDashboard(orders, users);
     });
 
- 
     this.eventBus.on("admin:refund-order", (orderId) => {
       console.log("[Main] Admin refunding order:", orderId);
       const updatedOrder = this.storage.refundOrder(orderId);
