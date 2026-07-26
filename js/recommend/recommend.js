@@ -179,3 +179,52 @@ export class RecommendEngine {
     return reasons.join("，");
   }
 }
+
+// ============== 临时控制台测试（开发联调后删除） ==============
+// 该段代码仅在浏览器控制台直接加载此模块时执行，方便快速验证推荐逻辑。
+// 测试依赖 core/cinema.js 的 Cinema 类，不依赖 UI、EventBus 或 Storage。
+import { Cinema } from "../core/cinema.js";
+
+const testCinema = new Cinema(10, 10, "top", 0.1);
+// 设置若干已售座位，模拟真实情况
+[
+  { row: 0, col: 0 },
+  { row: 0, col: 1 },
+  { row: 4, col: 4 },
+  { row: 4, col: 5 },
+  { row: 8, col: 2 },
+].forEach((s) => {
+  const seat = testCinema.getSeat(s.row, s.col);
+  if (seat) seat.setStatus("sold");
+});
+// 设置少量热度（0-1）
+testCinema.getSeat(2, 2).setHeat(0.2);
+testCinema.getSeat(5, 5).setHeat(0.1);
+testCinema.getSeat(7, 7).setHeat(0.8);
+
+const testEngine = new RecommendEngine();
+
+const testCases = [
+  { name: "个人-成人", pref: { age: "adult", count: 1, type: "personal" } },
+  { name: "个人-青少年", pref: { age: "teenager", count: 1, type: "personal" } },
+  { name: "个人-老人", pref: { age: "elderly", count: 1, type: "personal" } },
+  { name: "情侣", pref: { age: "adult", count: 2, type: "couple" } },
+  { name: "家庭3人", pref: { age: "adult", count: 3, type: "family" } },
+  { name: "家庭（含老人）", pref: { age: "adult", count: 3, type: "family", memberInfo: [{ name: "爷爷", age: 65 }] } },
+  { name: "团体5人", pref: { age: "adult", count: 5, type: "group" } },
+];
+
+console.group("[Recommend Test] 推荐算法控制台测试");
+for (const tc of testCases) {
+  const result = testEngine.recommend(tc.pref, testCinema);
+  console.log(
+    `%c${tc.name}:`,
+    "font-weight:bold;color:#2196F3",
+    result.map((s) => `${s.row + 1}排${s.col + 1}座(score=${s.score})`).join(", ") || "无推荐",
+    `| 等级=${result[0]?.recommendGrade || "-"}`,
+    `| 理由=${result[0]?.recommendReason || "-"}`,
+  );
+}
+console.groupEnd();
+// ============== 临时测试结束 ==============
+
