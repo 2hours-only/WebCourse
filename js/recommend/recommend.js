@@ -51,7 +51,7 @@ export class RecommendEngine {
       recommended = this._pickTopSeats(seats, Math.max(count, 1));
     }
 
-    // 生成评价等级与推荐理由（方案A：动态挂载到 Seat）
+    // 生成评价等级与推荐理由（动态挂载到 Seat）
     const grade = this._generateGrade(recommended);
     const reason = this._generateReason(recommended, userPreference, cinema);
     recommended.forEach((s) => {
