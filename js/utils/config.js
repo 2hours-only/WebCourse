@@ -63,7 +63,7 @@ export const AppConfig = {
   heatmap: {
     hot: "#FF0000",
     warm: "#FFA500",
-    cold: "#0000FF",
+    cold: "#4CAF50",
   },
 
   // ==================== 推荐算法权重 ====================

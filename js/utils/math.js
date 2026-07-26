@@ -129,7 +129,7 @@ export const MathUtils = {
   /**
    * 从画布坐标反向计算座位行列（用于点击检测）
    */
-  cartesianToSeat(canvasX, canvasY, canvasCenterX, hallParams, cinema) {
+  cartesianToSeat(canvasX, canvasY, canvasCenterX, hallParams, cinema, yOffset = 0) {
     const seatSizePixels = AppConfig.physical.seatWidth * _pixelsPerCm;
     const halfSize = seatSizePixels / 2;
 
@@ -138,7 +138,7 @@ export const MathUtils = {
         const pos = this.arcToCartesian(r, c, hallParams);
 
         const seatX = pos.x + canvasCenterX;
-        const seatY = pos.y;
+        const seatY = pos.y + yOffset;
 
         if (
           canvasX >= seatX - halfSize &&

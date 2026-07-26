@@ -4,9 +4,9 @@ export class Seat {
     this.col = col;
     this.status = "available"; // available / sold / selected
     this.isRecommended = false;
-    this.heat = 0; 
-    this.score = 0; 
-    this.price = 0; 
+    this.heat = null;
+    this.score = 0;
+    this.price = 0;
     console.log(`[Core] Seat(${row}, ${col}) created.`);
   }
 

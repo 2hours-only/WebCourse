@@ -4,6 +4,10 @@ export class UIPanel {
     this.eventBus = eventBus;
     this.loginLayer = document.getElementById("login-layer");
     this.mainContainer = container;
+    this.recommendBtn = this.mainContainer
+      ? this.mainContainer.querySelector("#recommend-btn")
+      : null;
+    this.recommendActive = false;
     console.log("[UI] Panel created");
     this.bindDOMEvents();
   }
@@ -30,8 +34,13 @@ export class UIPanel {
     const recommendBtn = this.container.querySelector("#recommend-btn");
     if (recommendBtn) {
       recommendBtn.addEventListener("click", () => {
-        const userInput = this.getUserInput();
-        this.eventBus.emit("user:recommend", userInput);
+        if (this.recommendActive) {
+          this.eventBus.emit("user:recommend", { action: "cancel" });
+        } else {
+          const userInput = this.getUserInput();
+          userInput.action = "recommend";
+          this.eventBus.emit("user:recommend", userInput);
+        }
       });
     }
 
@@ -96,6 +105,20 @@ export class UIPanel {
   getHallSelection() {
     const select = document.getElementById("hall-select");
     return select ? select.value : "small";
+  }
+
+  setRecommendButtonActive(active) {
+    this.recommendActive = !!active;
+    if (!this.recommendBtn) return;
+    this.recommendBtn.textContent = this.recommendActive
+      ? "取消智能推荐"
+      : "智能推荐";
+    this.recommendBtn.classList.toggle("btn-secondary", this.recommendActive);
+    this.recommendBtn.classList.toggle("btn-primary", !this.recommendActive);
+  }
+
+  clearRecommendation() {
+    this.setRecommendation([]);
   }
 
   switchView(viewName) {
@@ -244,6 +267,7 @@ export class UIPanel {
         resultDiv.innerHTML = `<p>暂无推荐座位</p>`;
       }
     }
+    this.setRecommendButtonActive(seats && seats.length > 0);
   }
 
   // 整合去重后的 setSelectedSeats
