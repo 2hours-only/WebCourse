@@ -178,6 +178,113 @@ export class RecommendEngine {
 
     return reasons.join("，");
   }
+
+  /**
+   * AI 观影问答式顾问推荐（加分项）
+   * 接收自然语言输入，自动解析为 UserPreference 并推荐座位，给出顾问式解释
+   * @param {string} userInput 用户自然语言输入，如"我想带女朋友看浪漫电影"
+   * @param {Cinema} cinema
+   * @param {Object} userRatings 用户手动评分映射
+   * @returns {Seat[]} 推荐座位列表，每个 Seat 附加 aiAdvice 字段
+   */
+  aiRecommend(userInput, cinema, userRatings = {}) {
+    console.log("[Recommend AI] aiRecommend input:", userInput);
+    const preference = this._parseUserInput(userInput);
+    const seats = this.recommend(preference, cinema, userRatings);
+    const advice = this._generateAIAdvice(userInput, preference, seats, cinema);
+    seats.forEach((s) => {
+      s.aiAdvice = advice;
+    });
+    console.log("[Recommend AI] advice:", advice);
+    return seats;
+  }
+
+  /**
+   * 自然语言解析为 UserPreference
+   * 基于关键词规则匹配，覆盖常见观影场景
+   */
+  _parseUserInput(input) {
+    const text = (input || "").toLowerCase();
+    let type = "personal";
+    let count = 1;
+    let age = "adult";
+    const memberInfo = [];
+
+    // 类型识别：情侣 / 家庭 / 团体
+    if (
+      /情侣|对象|女朋友|男朋友|老婆|老公|双人|两人|两位|二人/.test(text)
+    ) {
+      type = "couple";
+      count = 2;
+    } else if (
+      /家庭|家人|全家|亲子|带孩子|带小孩|一家三口|一家四口/.test(text)
+    ) {
+      type = "family";
+      count = 3;
+    } else if (
+      /团体|公司|同学|朋友|组队|多人|聚会|包场/.test(text)
+    ) {
+      type = "group";
+      const m = text.match(/(\d+)\s*[人个位]/);
+      count = m ? parseInt(m[1], 10) : 5;
+    }
+
+    // 年龄识别
+    if (/老人|老年|父母|爷爷|奶奶|外公|外婆|长辈/.test(text)) {
+      age = "elderly";
+    } else if (
+      /孩子|小孩|儿童|少年|青少年|学生|未成年|小朋友/.test(text)
+    ) {
+      age = "teenager";
+    }
+
+    // 通用人数提取（若前面未确定）
+    if (type === "personal") {
+      const m = text.match(/(\d+)\s*[人个位]/);
+      if (m) {
+        count = parseInt(m[1], 10);
+        if (count > 1) type = "group";
+      }
+    }
+
+    // 解析 "姓名:年龄" 或 "年龄岁" 的成员信息（用于团体/家庭票的子规则）
+    const memberPattern = /([\u4e00-\u9fa5a-zA-Z]+)\s*[:：]\s*(\d+)\s*岁?/g;
+    let match;
+    while ((match = memberPattern.exec(text)) !== null) {
+      memberInfo.push({ name: match[1].trim(), age: parseInt(match[2], 10) });
+    }
+
+    return { age, count, type, memberInfo };
+  }
+
+  /**
+   * 生成 AI 顾问式自然语言解释
+   */
+  _generateAIAdvice(userInput, preference, seats, cinema) {
+    if (!seats || seats.length === 0) {
+      return "抱歉，根据您的需求未找到合适的座位，建议调整人数或选择其他场次。";
+    }
+    const top = seats[0];
+    const typeText =
+      preference.type === "couple"
+        ? "情侣双人"
+        : preference.type === "family"
+          ? "家庭"
+          : preference.type === "group"
+            ? `团体 ${preference.count} 人`
+            : "个人";
+
+    let ageText = "";
+    if (preference.age === "teenager") ageText = "（已避开前排，保护视力）";
+    else if (preference.age === "elderly")
+      ageText = "（已避开后排，方便进出）";
+
+    const seatDesc = seats
+      .map((s) => `${s.row + 1}排${s.col + 1}座`)
+      .join("、");
+
+    return `根据您的需求"${userInput}"，我为您安排了${typeText}观影座位${ageText}：${seatDesc}。${seats[0].recommendReason || ""}综合评分${seats[0].recommendGrade || "一般"}，祝您观影愉快！`;
+  }
 }
 
 // ============== 临时控制台测试（开发联调后删除） ==============
@@ -223,6 +330,25 @@ for (const tc of testCases) {
     result.map((s) => `${s.row + 1}排${s.col + 1}座(score=${s.score})`).join(", ") || "无推荐",
     `| 等级=${result[0]?.recommendGrade || "-"}`,
     `| 理由=${result[0]?.recommendReason || "-"}`,
+  );
+}
+console.groupEnd();
+
+// AI 顾问问答式推荐测试
+console.group("[Recommend AI Test] AI 观影顾问推荐测试");
+const aiTestCases = [
+  "我想带女朋友看浪漫电影",
+  "我们五个人公司团建",
+  "一家三口看电影，带一个老人",
+  "初中生班级活动，20个人",
+];
+for (const aiInput of aiTestCases) {
+  const result = testEngine.aiRecommend(aiInput, testCinema);
+  console.log(
+    `%c${aiInput}:`,
+    "font-weight:bold;color:#9C27B0",
+    result.map((s) => `${s.row + 1}排${s.col + 1}座`).join(", ") || "无推荐",
+    `| AI建议=${result[0]?.aiAdvice || "-"}`,
   );
 }
 console.groupEnd();
