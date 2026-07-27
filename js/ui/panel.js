@@ -54,7 +54,7 @@ export class UIPanel {
         const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
 
         if (!apiKey) {
-          alert("请先在上方输入您的智谱AI API Key");
+          alert("请先在上方输入您的AI API Key");
           return;
         }
 
