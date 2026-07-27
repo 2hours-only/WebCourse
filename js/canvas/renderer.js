@@ -1,87 +1,62 @@
 import { AppConfig } from "../utils/config.js";
-import { MathUtils, setPixelsPerCm, getPixelsPerCm } from "../utils/math.js";
+import { MathUtils, setPixelsPerCm } from "../utils/math.js";
 
 export class CanvasRenderer {
   constructor(canvasElement, cinema) {
     this.canvas = canvasElement;
     this.ctx = this.canvas.getContext("2d");
     this.cinema = cinema;
-    this.hallType = "small"; // 当前影厅类型
-
-    // 渲染参数：像素相关
-    this.pixelsPerCm = 0.35; // 缩放比例
+    this.hallType = "small";
+    this.pixelsPerCm = 0.35;
     this.seatSizePixels = AppConfig.physical.seatWidth * this.pixelsPerCm;
     this.canvasPadding = 40;
-
-    // 悬停状态
     this.hoveredSeat = null;
+    this.dragRect = null;
+    this.yOffset = 55;
 
-    // 设置 math.js 的缩放比例
     setPixelsPerCm(this.pixelsPerCm);
 
     console.log("[Canvas] Renderer created");
   }
 
-  /**
-   * 设置影厅类型
-   */
   setHallType(hallType) {
     this.hallType = hallType;
   }
 
-  /**
-   * 设置缩放比例
-   */
   setPixelsPerCm(value) {
     this.pixelsPerCm = value;
     this.seatSizePixels = AppConfig.physical.seatWidth * value;
     setPixelsPerCm(value);
   }
 
-  /**
-   * 获取当前影厅参数
-   */
   getHallParams() {
     return AppConfig.getHallParams(this.hallType);
   }
 
-  /**
-   * 完整渲染影院
-   */
   render() {
-    // 清空画布
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-    // 计算画布中心
     const centerX = this.canvas.width / 2;
 
-    // 1. 绘制银幕
     this._renderScreen(centerX);
-
-    // 2. 绘制所有座位
+    if (this.heatmapRenderer) {
+      this.heatmapRenderer.render();
+    }
     this._renderAllSeats(centerX);
-
-    // 3. 绘制排号标识
     this._renderRowLabels(centerX);
-
-    // 4. 绘制过道标识（可选）
+    this._renderColumnLabels(centerX);
     this._renderAisleMark(centerX);
+    if (this.dragRect) {
+      this._renderDragSelection(this.dragRect);
+    }
   }
 
-  /**
-   * 绘制银幕
-   */
   _renderScreen(centerX) {
     const ctx = this.ctx;
-    const hallParams = this.getHallParams();
-
-    // 银幕宽度 = 影厅弧形弦长（近似）
     const screenWidthCm = AppConfig.getScreenWidth(this.hallType);
     const screenWidthPixels = screenWidthCm * this.pixelsPerCm * 0.8;
     const screenHeight = 30;
     const screenY = 15;
 
-    // 银幕背景
     const gradient = ctx.createLinearGradient(
       centerX - screenWidthPixels / 2,
       screenY,
@@ -94,7 +69,8 @@ export class CanvasRenderer {
 
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.roundRect(
+    this._drawRoundedRect(
+      ctx,
       centerX - screenWidthPixels / 2,
       screenY,
       screenWidthPixels,
@@ -103,16 +79,13 @@ export class CanvasRenderer {
     );
     ctx.fill();
 
-    // 银幕文字
     ctx.fillStyle = "#e0e0e0";
     ctx.font = "14px Arial";
     ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.fillText("银 幕", centerX, screenY + screenHeight / 2 + 5);
   }
 
-  /**
-   * 绘制所有座位
-   */
   _renderAllSeats(centerX) {
     const seats = this.cinema.getAllSeats();
     for (const seat of seats) {
@@ -120,22 +93,14 @@ export class CanvasRenderer {
     }
   }
 
-  /**
-   * 绘制单个座位
-   */
   _renderSeat(seat, centerX) {
     const ctx = this.ctx;
     const hallParams = this.getHallParams();
-
-    // 计算座位坐标和旋转角度
     const pos = MathUtils.arcToCartesian(seat.row, seat.col, hallParams);
-
-    // 转换为画布坐标
     const x = pos.x + centerX;
-    const y = pos.y + 55; // 银幕下移一点
+    const y = pos.y + this.yOffset;
     const rotation = pos.rotation;
 
-    // 确定座位颜色
     let fillColor = AppConfig.colors.free;
     if (seat.status === "sold") {
       fillColor = AppConfig.colors.sold;
@@ -145,19 +110,14 @@ export class CanvasRenderer {
       fillColor = AppConfig.colors.recommended;
     }
 
-    // 悬停效果
-    if (this.hoveredSeat === seat && seat.status === "available") {
-      fillColor = AppConfig.colors.hover;
-    }
-
-    // === 绘制旋转的座位 ===
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(rotation);
 
     ctx.fillStyle = fillColor;
     ctx.beginPath();
-    ctx.roundRect(
+    this._drawRoundedRect(
+      ctx,
       -this.seatSizePixels / 2,
       -this.seatSizePixels / 2,
       this.seatSizePixels,
@@ -166,56 +126,63 @@ export class CanvasRenderer {
     );
     ctx.fill();
 
-    // 绘制座位号（仅首排显示）
-    if (seat.row === 0) {
-      ctx.fillStyle = "#ffffff";
-      ctx.font = `${this.seatSizePixels * 0.35}px Arial`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(`${seat.col + 1}`, 0, 0);
+    if (seat.isRecommended) {
+      ctx.strokeStyle = "rgba(255, 215, 0, 0.85)";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    if (this.hoveredSeat === seat) {
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
 
     ctx.restore();
   }
 
-  /**
-   * 绘制排号标识
-   */
   _renderRowLabels(centerX) {
     const ctx = this.ctx;
     const hallParams = this.getHallParams();
-
-    // 计算最左侧座位的 X 坐标
-    const leftMostPos = MathUtils.arcToCartesian(
-      hallParams.rows - 1,
-      0,
-      hallParams,
-    );
+    const leftMostPos = MathUtils.arcToCartesian(hallParams.rows - 1, 0, hallParams);
 
     ctx.fillStyle = "#666666";
     ctx.font = "12px Arial";
     ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
 
     for (let r = 0; r < hallParams.rows; r++) {
       const pos = MathUtils.arcToCartesian(r, 0, hallParams);
-
       const labelX = centerX + leftMostPos.x - this.seatSizePixels;
-      const labelY = pos.y + 55 + this.seatSizePixels / 2;
+      const labelY = pos.y + this.yOffset;
 
       ctx.fillText(`${r + 1}排`, labelX, labelY);
 
-      // 标注过道
       if (r === AppConfig.physical.aisleRowIndex - 1) {
         ctx.fillStyle = "#999999";
-        ctx.fillText("(过道)", labelX, labelY + 15);
+        ctx.fillText("(过道)", labelX, labelY + 16);
         ctx.fillStyle = "#666666";
       }
     }
   }
 
-  /**
-   * 绘制过道标识
-   */
+  _renderColumnLabels(centerX) {
+    const ctx = this.ctx;
+    const hallParams = this.getHallParams();
+
+    ctx.fillStyle = "#666666";
+    ctx.font = "12px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+
+    for (let c = 0; c < hallParams.cols; c++) {
+      const pos = MathUtils.arcToCartesian(0, c, hallParams);
+      const x = pos.x + centerX;
+      const y = pos.y + this.yOffset - this.seatSizePixels;
+      ctx.fillText(`${c + 1}`, x, y);
+    }
+  }
+
   _renderAisleMark(centerX) {
     const ctx = this.ctx;
     const hallParams = this.getHallParams();
@@ -223,41 +190,46 @@ export class CanvasRenderer {
 
     if (aisleRow <= 0 || aisleRow >= hallParams.rows) return;
 
-    // 获取过道上下的排的Y坐标
-    const posAbove = MathUtils.arcToCartesian(
-      aisleRow - 1,
-      Math.floor(hallParams.cols / 2),
-      hallParams,
-    );
-    const posBelow = MathUtils.arcToCartesian(
-      aisleRow,
-      Math.floor(hallParams.cols / 2),
-      hallParams,
-    );
+    const posAbove = MathUtils.arcToCartesian(aisleRow - 1, Math.floor(hallParams.cols / 2), hallParams);
+    const posBelow = MathUtils.arcToCartesian(aisleRow, Math.floor(hallParams.cols / 2), hallParams);
 
-    // 绘制过道区域
     ctx.save();
-    ctx.fillStyle = "rgba(200, 200, 200, 0.3)";
+    ctx.fillStyle = "rgba(200, 200, 200, 0.12)";
+    ctx.strokeStyle = "rgba(150, 150, 150, 0.35)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([6, 6]);
     ctx.fillRect(
       centerX - (hallParams.cols * this.seatSizePixels) / 4,
-      posAbove.y + 55 + this.seatSizePixels / 2,
+      posAbove.y + this.yOffset + this.seatSizePixels / 2,
+      (hallParams.cols * this.seatSizePixels) / 2,
+      posBelow.y - posAbove.y - this.seatSizePixels,
+    );
+    ctx.strokeRect(
+      centerX - (hallParams.cols * this.seatSizePixels) / 4,
+      posAbove.y + this.yOffset + this.seatSizePixels / 2,
       (hallParams.cols * this.seatSizePixels) / 2,
       posBelow.y - posAbove.y - this.seatSizePixels,
     );
     ctx.restore();
   }
 
-  /**
-   * 更新单个座位显示
-   */
+  _renderDragSelection(rect) {
+    if (!rect) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.fillStyle = "rgba(33, 150, 243, 0.14)";
+    ctx.strokeStyle = "rgba(33, 150, 243, 0.9)";
+    ctx.lineWidth = 2;
+    ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+    ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+    ctx.restore();
+  }
+
   updateSeat(seat) {
     const centerX = this.canvas.width / 2;
     this._renderSeat(seat, centerX);
   }
 
-  /**
-   * 渲染指定座位列表
-   */
   renderSeats(seats) {
     const centerX = this.canvas.width / 2;
     for (const seat of seats) {
@@ -265,17 +237,95 @@ export class CanvasRenderer {
     }
   }
 
-  /**
-   * 设置悬停座位
-   */
   setHoveredSeat(seat) {
+    if (this.hoveredSeat === seat) return;
     this.hoveredSeat = seat;
+    this.render();
   }
 
-  /**
-   * 渲染热力图图层
-   */
+  clearDragRect() {
+    if (!this.dragRect) return;
+    this.dragRect = null;
+    this.render();
+  }
+
+  setDragRect(rect) {
+    this.dragRect = rect;
+    this.render();
+  }
+
+  getSeatAtPoint(canvasX, canvasY) {
+    const centerX = this.canvas.width / 2;
+    const hallParams = this.getHallParams();
+    const seatCoord = MathUtils.cartesianToSeat(canvasX, canvasY, centerX, hallParams, this.cinema, this.yOffset);
+    if (seatCoord) {
+      return this.cinema.getSeat(seatCoord.row, seatCoord.col);
+    }
+    return this.getClosestSeatAtPoint(canvasX, canvasY);
+  }
+
+  getClosestSeatAtPoint(canvasX, canvasY) {
+    const hallParams = this.getHallParams();
+    const seats = this.cinema.getAllSeats();
+    let closest = null;
+    let minDistance = Infinity;
+    const tolerance = this.seatSizePixels * 0.75;
+
+    for (const seat of seats) {
+      const center = this.getSeatCenter(seat);
+      const dx = canvasX - center.x;
+      const dy = canvasY - center.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closest = seat;
+      }
+    }
+
+    return minDistance <= tolerance ? closest : null;
+  }
+
+  _drawRoundedRect(ctx, x, y, width, height, radius) {
+    if (typeof radius === "undefined") radius = 5;
+    if (typeof radius === "number") {
+      radius = { tl: radius, tr: radius, br: radius, bl: radius };
+    } else {
+      const defaultRadius = { tl: 0, tr: 0, br: 0, bl: 0 };
+      for (const side in defaultRadius) {
+        radius[side] = radius[side] || defaultRadius[side];
+      }
+    }
+
+    ctx.moveTo(x + radius.tl, y);
+    ctx.lineTo(x + width - radius.tr, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius.tr);
+    ctx.lineTo(x + width, y + height - radius.br);
+    ctx.quadraticCurveTo(
+      x + width,
+      y + height,
+      x + width - radius.br,
+      y + height,
+    );
+    ctx.lineTo(x + radius.bl, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius.bl);
+    ctx.lineTo(x, y + radius.tl);
+    ctx.quadraticCurveTo(x, y, x + radius.tl, y);
+    ctx.closePath();
+  }
+
+  getSeatCenter(seat) {
+    const hallParams = this.getHallParams();
+    const pos = MathUtils.arcToCartesian(seat.row, seat.col, hallParams);
+    return {
+      x: pos.x + this.canvas.width / 2,
+      y: pos.y + this.yOffset,
+    };
+  }
+
   renderHeatmap(heatData) {
-    console.log("[Canvas] renderHeatmap", heatData);
+    if (!heatData || !Array.isArray(heatData)) return;
+    if (this.heatmapRenderer) {
+      this.heatmapRenderer.update(heatData);
+    }
   }
 }

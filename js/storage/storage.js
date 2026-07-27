@@ -5,6 +5,7 @@ const KEY_USERS = "sc_users";
 const KEY_ORDERS = "sc_orders";
 const KEY_CURRENT_USER = "sc_current_user";
 const KEY_RATINGS = "sc_ratings";
+const KEY_HALL_TYPE = "sc_last_hall_type";
 
 export class StorageManager {
   constructor() {
@@ -126,6 +127,23 @@ export class StorageManager {
 
   getUserRatings() {
     return JSON.parse(localStorage.getItem(KEY_RATINGS) || "{}");
+  }
+
+  saveHallType(hallType) {
+    if (!hallType) return;
+    const normalized = String(hallType).trim().toLowerCase();
+    if (["small", "medium", "large"].includes(normalized)) {
+      localStorage.setItem(KEY_HALL_TYPE, normalized);
+    }
+  }
+
+  getHallType(defaultType = "small") {
+    const stored = localStorage.getItem(KEY_HALL_TYPE);
+    const normalized = stored ? String(stored).trim().toLowerCase() : "";
+    if (["small", "medium", "large"].includes(normalized)) {
+      return normalized;
+    }
+    return defaultType;
   }
 
   saveSeatState(seat) {}

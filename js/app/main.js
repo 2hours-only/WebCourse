@@ -68,14 +68,23 @@ class MainController {
   initMainApplication(user) {
     this.currentUser = user;
     this.uiPanel.switchView("main");
-    this.initCinemaData("small");
+    const lastHallType = this.storage.getHallType("small");
+    this.initCinemaData(lastHallType);
+
+    const hallSelect = document.getElementById("hall-select");
+    if (hallSelect) {
+      hallSelect.value = lastHallType;
+    }
 
     const canvasEl = document.getElementById("cinema-canvas");
     if (canvasEl) {
       this.resizeCanvas(canvasEl);
       window.addEventListener("resize", () => this.handleResize(canvasEl));
       this.renderer = new CanvasRenderer(canvasEl, this.cinema);
+      this.renderer.setHallType(lastHallType);
       this.heatmapRenderer = new HeatmapRenderer(this.renderer);
+      this.renderer.heatmapRenderer = this.heatmapRenderer;
+      this.heatmapRenderer.update();
       this.interaction = new InteractionHandler(
         canvasEl,
         this.renderer,
@@ -147,6 +156,19 @@ class MainController {
     this.eventBus.on("user:recommend", (userPref) => {
       console.log("[Main] Received user:recommend event", userPref);
       if (!this.cinema) return;
+      if (userPref && userPref.action === "cancel") {
+        // 取消推荐，清除推荐高亮并恢复默认状态
+        this.cinema.getAllSeats().forEach((seat) => {
+          seat.setRecommended(false);
+          seat.recommendGrade = "";
+          seat.recommendReason = "";
+        });
+        if (this.renderer) {
+          this.renderer.render();
+        }
+        this.uiPanel.setRecommendation([]);
+        return;
+      }
       const userRatings = this.storage.getUserRatings();
       const seats = this.recommendEngine.recommend(
         userPref,
@@ -154,31 +176,49 @@ class MainController {
         userRatings,
       );
       if (this.renderer) {
-        this.renderer.renderSeats(seats);
-        if (this.heatmapRenderer) {
-          this.heatmapRenderer.generate(seats);
-          this.heatmapRenderer.render();
-        }
+        this.renderer.render();
       }
       this.uiPanel.setRecommendation(seats);
     });
 
     this.eventBus.on("seat:clicked", (payload) => {
       console.log("[Main] Received seat:clicked event", payload);
-      const { seat, isMultiSelect, isDragSelect } = payload;
-      if (!seat) return;
+      if (!payload) return;
 
-      if (seat.status === "available") {
-        seat.setStatus("selected");
-        this.selectedSeats.push(seat);
-        if (this.renderer) this.renderer.updateSeat(seat);
-        this.uiPanel.setSelectedSeats(this.selectedSeats);
-      } else if (seat.status === "selected") {
-        seat.setStatus("available");
-        this.selectedSeats = this.selectedSeats.filter((s) => s !== seat);
-        if (this.renderer) this.renderer.updateSeat(seat);
-        this.uiPanel.setSelectedSeats(this.selectedSeats);
+      const seats = payload.seats || (payload.seat ? [payload.seat] : []);
+      const isMultiSelect = payload.isMultiSelect;
+
+      if (!seats.length) return;
+
+      if (!isMultiSelect) {
+        seats.forEach((seat) => {
+          if (!seat || seat.status === "sold") return;
+
+          if (seat.status === "available") {
+            seat.setStatus("selected");
+            this.selectedSeats.push(seat);
+          } else if (seat.status === "selected") {
+            seat.setStatus("available");
+            this.selectedSeats = this.selectedSeats.filter((s) => s !== seat);
+          }
+        });
+      } else {
+        seats.forEach((seat) => {
+          if (!seat || seat.status === "sold") return;
+
+          if (seat.status === "available") {
+            seat.setStatus("selected");
+            if (!this.selectedSeats.includes(seat)) {
+              this.selectedSeats.push(seat);
+            }
+          }
+        });
       }
+
+      if (this.renderer) {
+        this.renderer.render();
+      }
+      this.uiPanel.setSelectedSeats(this.selectedSeats);
     });
 
     this.eventBus.on("seat:rating", (ratingData) => {
@@ -217,11 +257,16 @@ class MainController {
           data.heatMap,
           data.curvature,
         );
-        // 【修复】更新 renderer 的影厅类型，确保使用正确的弧形参数
         if (this.renderer) {
           this.renderer.setHallType(hallType);
+        }
+        if (this.heatmapRenderer) {
+          this.heatmapRenderer.update(this.cinema.getAllSeats());
+        }
+        if (this.renderer) {
           this.renderer.render();
         }
+        this.storage.saveHallType(hallType);
         this.selectedSeats = [];
         this.uiPanel.setSelectedSeats([]);
         this.uiPanel.setRecommendation([]);
