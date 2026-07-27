@@ -118,7 +118,7 @@ export class RuleEngine {
    * - 老人/少年子规则已在 _applyAgeRules 中应用
    */
   _filterGroup(seats, need) {
-    return seats.filter((s) => this._hasContiguous(s, seats, need));
+    return seats;
   }
 
   /**

@@ -55,3 +55,55 @@
     min-height: 400px;
   }
 }
+
+
+/* 用户信息头部样式 */
+#user-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  background: var(--primary-color, #4CAF50);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#current-username {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+#logout-btn {
+  padding: 6px 16px;
+  background: white;
+  color: var(--primary-color, #4CAF50);
+  border-radius: 4px;
+}
+
+/* 主容器下移，避免被header遮挡 */
+.main-container {
+  margin-top: 50px;
+  min-height: calc(100vh - 60px);
+  padding: 20px;
+  gap: 20px;
+  background-color: #f0f2f5;
+  display: flex;
+}
+
+/* 响应式调整 */
+@media (max-width: 1024px) {
+  #user-header {
+    height: 40px;
+    padding: 0 10px;
+  }
+  
+  .main-container {
+    margin-top: 40px;
+  }
+}

@@ -24,6 +24,12 @@
 
       <!-- 默认隐藏主界面 -->
       <div class="main-container hidden">
+        <!-- 用户信息头部 -->
+        <div id="user-header">
+          <span id="current-username"></span>
+          <button id="logout-btn" class="btn btn-secondary">登出</button>
+        </div>
+
         <div class="left-panel">
           <div id="hall-selection-area">
             <label>选择放映厅：</label>
@@ -32,6 +38,11 @@
               <option value="medium">中厅 (200座)</option>
               <option value="large">大厅 (300座)</option>
             </select>
+          </div>
+
+          <div id="date-selection-area">
+            <label>选择观影日期：</label>
+            <select id="date-select"></select>
           </div>
 
           <div id="user-input-area">
@@ -54,7 +65,6 @@
               placeholder="人数"
               min="1"
             />
-
             <div id="member-info-area" class="hidden">
               <p>团体成员信息 (格式: 姓名:年龄,逗号分隔)</p>
               <textarea
@@ -63,8 +73,35 @@
                 placeholder="如: 张三:20, 李四:12, 王五:65"
               ></textarea>
             </div>
-
+            
+            <!-- API Key 输入框 -->
+            <div id="api-key-area" style="margin-top: 10px">
+              <label for="api-key-input" style="font-size: 12px; color: #666">
+                智谱AI API Key:
+              </label>
+              <input
+                id="api-key-input"
+                type="password"
+                placeholder="请输入您的API Key"
+                style="
+                  width: 100%;
+                  padding: 8px;
+                  margin-top: 5px;
+                  border: 1px solid #e0e0e0;
+                  border-radius: 4px;
+                "
+              />
+            </div>
+            
             <button id="recommend-btn" class="btn btn-primary">智能推荐</button>
+            <!-- 修改：测试AI连接按钮改为AI推荐按钮 -->
+            <button
+              id="ai-recommend-btn"
+              class="btn btn-secondary"
+              style="margin-top: 10px"
+            >
+              AI推荐
+            </button>
           </div>
 
           <div id="accessibility-area">

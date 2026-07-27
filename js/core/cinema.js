@@ -6,7 +6,7 @@ export class Cinema {
     this.rows = rows;
     this.cols = cols;
     this.screenPosition = screenPosition;
-    this.curvature = curvature; 
+    this.curvature = curvature;
     this.seats = [];
     this._initSeats();
   }
@@ -41,6 +41,17 @@ export class Cinema {
       if (seat) seat.setStatus("sold");
     });
 
+    if (heatMap && heatMap.length > 0) {
+      heatMap.forEach((h) => {
+        const seat = this.getSeat(h.row, h.col);
+        if (seat) seat.setHeat(h.value);
+      });
+    } else {
+      this.getAllSeats().forEach((seat) => seat.setHeat(null));
+    }
+  }
+
+  updateHeatMap(heatMap) {
     if (heatMap && heatMap.length > 0) {
       heatMap.forEach((h) => {
         const seat = this.getSeat(h.row, h.col);
