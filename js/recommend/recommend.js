@@ -4,7 +4,7 @@ import { MathUtils } from "../utils/math.js";
 
 /** 智谱 API 常量（Key 由 Main/UI 传入） */
 const ZHIPU_API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
-const ZHIPU_MODEL = "glm-4-flash";
+const ZHIPU_MODEL = "glm-4.7-flash";
 
 export class RecommendEngine {
   constructor() {
