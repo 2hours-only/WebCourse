@@ -571,17 +571,9 @@ class MainController {
     });
   }
 
-  /**
-   * AI 智能推荐
-   * 根据用户输入和当前影院状态构建提示词，请求AI推荐
-   */
-  /**
-   * AI 智能推荐
-   * 根据用户输入和当前影院状态构建提示词，请求AI推荐
-   */
+
   async aiRecommend(apiKey, userInput) {
     console.log("[Main] AI Recommend started with input:", userInput);
-
     if (!apiKey) {
       alert("未提供有效的 API Key");
       return;
@@ -591,189 +583,28 @@ class MainController {
       return;
     }
 
-    // 1. 准备数据
-    // 观众类型映射
-    const ageMap = { adult: "成年人", teenager: "少年", elderly: "老年人" };
-    const typeMap = {
-      personal: "个人票",
-      couple: "情侣票",
-      family: "家庭票",
-      group: "团体票",
-    };
-
-    const audienceType = ageMap[userInput.age] || "成年人";
-    const ticketType = typeMap[userInput.type] || "个人票";
-    const count = userInput.count || 1;
-
-    // 成员信息格式化
-    let memberInfoText = "无";
-    if (
-      userInput.type === "group" &&
-      userInput.memberInfo &&
-      userInput.memberInfo.length > 0
-    ) {
-      memberInfoText = userInput.memberInfo
-        .map((m) => `${m.name}:${m.age}`)
-        .join(", ");
-    } else {
-      // 如果不是团体票或没有详细成员信息，根据人数构造模拟信息
-      const mockNames = ["张三", "李四", "王五", "赵六", "钱七"];
-      memberInfoText = mockNames
-        .slice(0, Math.min(count, 5))
-        .map(
-          (name) =>
-            `${name}:${userInput.age === "teenager" ? 12 : userInput.age === "elderly" ? 65 : 25}`,
-        )
-        .join(", ");
-    }
-
-    // 已售座位格式化 (格式: a-b)
-    const soldSeatsList = this.cinema
-      .getAllSeats()
-      .filter((s) => s.status === "sold")
-      .map((s) => `${s.row + 1}-${s.col + 1}`); // 转为1-based索引
-    const soldSeatsText =
-      soldSeatsList.length > 0 ? soldSeatsList.join(", ") : "无";
-
-    // 影院尺寸
-    const rows = this.cinema.rows;
-    const cols = this.cinema.cols;
-
-    // 2. 构建提示词
-    const prompt = `
-# 影院智能选座助理任务书
-
-## 1. 影厅布局信息
-- **布局尺寸**: 10 排 x ${cols} 列
-- **座位编号**: 使用“排号-列号”格式（例如 3-5 代表第3排第5列）
-- **已售座位**: ${soldSeatsText || "无"}
-
-## 2. 客户购票需求
-- **观众类型**: ${audienceType}
-- **选座类型**: ${ticketType}
-- **购票数量**: **${count} 张** (请务必输出正好 ${count} 个座位，不能多也不能少)
-- **成员信息**: ${memberInfoText}
-  *(注: 仅当选座类型为“团体票”或“家庭票”时需参考成员年龄，其他情况请忽略姓名详情)*
-
-## 3. 选座规则 (请严格遵守)
-
-### 硬性规则 (必须满足，否则推荐无效)
-1. **有效性限制**: 不能推荐已售座位。
-2. **数量限制**: 推荐结果必须正好包含 **${count}** 个座位。
-3. **少年限制**: 15岁以下(少年)观众不可坐前三排(第1-3排)。
-4. **老年限制**: 60岁以上(老年)观众不可坐后三排。
-5. **情侣票**: 必须推荐两个相邻座位。
-6. **团体/家庭票**: 所有人必须坐在**同一排**且座位**连续**。
-
-### 优化规则 (尽量满足)
-- 优先选择影厅中间区域。
-- 综合考虑视角与银幕距离。
-- 避开周围拥挤区域。
-
-## 4. 输出格式要求
-请严格按照以下 Markdown 格式输出，不要包含多余的解释：
-
-\`\`\`
-座位列表
-{
-  <推荐座位1>,
-  <推荐座位2>,
-  ...
-}
-
-推荐理由: <简明扼要的理由>
-\`\`\`
-
-### 正确示例
-输入: 团体票，3人
-\`\`\`
-座位列表
-{
-  5-5,
-  5-6,
-  5-7
-}
-
-推荐理由: 团体同排连续空位，居中视角佳。
-\`\`\`
-
-请根据以上信息开始推荐：
-`;
-
-    console.log("[Main] Sending prompt to AI:\n", prompt);
-
-    const API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
-
     try {
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "glm-4-flash",
-          messages: [{ role: "user", content: prompt }],
-          stream: false,
-        }),
-      });
+      // 调用 RecommendEngine 的 aiRecommend 方法
+      const userRatings = this.storage.getUserRatings();
+      const recommendedSeats = await this.recommendEngine.aiRecommend(
+        userInput,
+        this.cinema,
+        userRatings,
+        apiKey,
+      );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          `API请求失败: ${response.status} ${errorData.error?.message || ""}`,
-        );
-      }
+      // 更新 UI 显示
+      const reason =
+        recommendedSeats.length > 0
+          ? recommendedSeats[0].aiAdvice ||
+            recommendedSeats[0].recommendReason ||
+            ""
+          : "";
+      this.uiPanel.setRecommendation(recommendedSeats, reason);
 
-      const data = await response.json();
-
-      if (data.choices && data.choices.length > 0) {
-        const reply = data.choices[0].message.content;
-        console.log(
-          `%c[Main] AI 推荐结果:\n${reply}`,
-          "color: #2196F3; font-weight: bold;",
-        );
-
-        // === 解析AI返回的字符串，提取座位和理由 ===
-        const parsed = this._parseAIResponse(reply);
-
-        if (parsed.seats.length > 0) {
-          // 清除所有座位的推荐标记
-          this.cinema.getAllSeats().forEach((seat) => {
-            seat.setRecommended(false);
-          });
-
-          // 设置推荐座位
-          const recommendedSeats = [];
-          parsed.seats.forEach(({ row, col }) => {
-            const seat = this.cinema.getSeat(row, col);
-            if (seat && seat.status !== "sold") {
-              seat.setRecommended(true);
-              recommendedSeats.push(seat);
-              console.log(`[Main] AI推荐座位: ${row + 1}排${col + 1}座`);
-            } else if (seat && seat.status === "sold") {
-              console.warn(
-                `[Main] AI推荐的座位 ${row + 1}-${col + 1} 已被占用，跳过`,
-              );
-            } else {
-              console.warn(
-                `[Main] AI推荐的座位 ${row + 1}-${col + 1} 不存在，跳过`,
-              );
-            }
-          });
-
-          // 更新UI显示
-          this.uiPanel.setRecommendation(recommendedSeats, parsed.reason);
-
-          // 更新Canvas渲染
-          if (this.renderer) {
-            this.renderer.render();
-          }
-        } else {
-          this.uiPanel.setRecommendation([], "AI未能解析出有效座位");
-        }
-      } else {
-        console.warn("[Main] AI 返回数据格式异常:", data);
+      // 更新 Canvas 渲染
+      if (this.renderer) {
+        this.renderer.render();
       }
     } catch (error) {
       console.error("[Main] AI Recommend Failed:", error);
@@ -781,84 +612,7 @@ class MainController {
     }
   }
 
-  /**
-   * 解析AI返回的响应字符串
-   * @param {string} response AI返回的原始字符串
-   * @returns {{seats: Array<{row: number, col: number}>, reason: string}}
-   */
-  _parseAIResponse(response) {
-    console.log("[Main] Parsing AI response:", response);
-
-    const result = {
-      seats: [],
-      reason: "",
-    };
-
-    try {
-      // 提取座位列表部分 - 匹配 "座位列表" 和 "推荐理由" 之间的内容
-      // 支持格式: 座位列表{...}推荐理由:...
-      // 或 Markdown 代码块格式
-
-      // 尝试匹配多种格式
-      let seatListStr = "";
-
-      // 格式1: 座位列表{...}推荐理由:...
-      const directMatch = response.match(/座位列表\s*\{([^}]*)\}/);
-      if (directMatch) {
-        seatListStr = directMatch[1];
-      }
-
-      // 格式2: Markdown代码块中的格式
-      if (!seatListStr) {
-        const codeBlockMatch = response.match(/座位列表\s*\n?\s*\{([^}]*)\}/s);
-        if (codeBlockMatch) {
-          seatListStr = codeBlockMatch[1];
-        }
-      }
-
-      // 格式3: 直接匹配 {...} 内的内容（兼容不带"座位列表"前缀的情况）
-      if (!seatListStr) {
-        const braceMatch = response.match(/\{([^}]*)\}/);
-        if (braceMatch) {
-          seatListStr = braceMatch[1];
-        }
-      }
-
-      if (seatListStr) {
-        // 解析座位 - 格式为 "排号-列号"，如 "5-5, 5-6"
-        // 清理字符串，移除多余空白和换行
-        const cleanedStr = seatListStr.replace(/\s+/g, " ").trim();
-        const seatStrs = cleanedStr
-          .split(",")
-          .map((s) => s.trim())
-          .filter((s) => s);
-
-        seatStrs.forEach((seatStr) => {
-          // 匹配 "数字-数字" 格式
-          const seatMatch = seatStr.match(/(\d+)\s*-\s*(\d+)/);
-          if (seatMatch) {
-            // 转为0-based索引
-            const row = parseInt(seatMatch[1]) - 1;
-            const col = parseInt(seatMatch[2]) - 1;
-            result.seats.push({ row, col });
-          }
-        });
-      }
-
-      // 提取推荐理由
-      // 格式1: 推荐理由: xxx
-      const reasonMatch = response.match(/推荐理由\s*[:：]\s*([^\n{}]+)/);
-      if (reasonMatch) {
-        result.reason = reasonMatch[1].trim();
-      }
-
-      console.log("[Main] Parsed result:", result);
-    } catch (error) {
-      console.error("[Main] Failed to parse AI response:", error);
-    }
-
-    return result;
-  }
+ 
 }
 
 new MainController();
