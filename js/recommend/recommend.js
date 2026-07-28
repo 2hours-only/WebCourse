@@ -4,7 +4,12 @@ import { MathUtils } from "../utils/math.js";
 
 /** 智谱 API 常量（Key 由 Main/UI 传入） */
 const ZHIPU_API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
+
+//更新的模型, 更聪明, 但是等待时间更长, 报错429概率也更高
 const ZHIPU_MODEL = "glm-4.7-flash";
+
+//旧模型, 速度快
+// const ZHIPU_MODEL = "glm-4-flash";
 
 export class RecommendEngine {
   constructor() {
