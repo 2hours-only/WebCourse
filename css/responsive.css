@@ -1,103 +1,328 @@
-/* 响应式设计 */
+/* ============================================================
+   responsive.css — 响应式细节
+   目标设备:PC / iPad / 手机(作业要求三端都要能用)
 
-/* 移动设备样式 */
-@media (max-width: 768px) {
-    .header h1 {
-        font-size: 1.2em;
-    }
-    
-    .left-panel,
-    .right-panel {
-        padding: 10px;
-    }
-    
-    .cinema-container {
-        padding: 10px;
-    }
-    
-    .card {
-        padding: 15px;
-    }
-    
-    .btn {
-        padding: 6px 12px;
-        font-size: 12px;
-    }
-    
-    .form-group input,
-    .form-group select {
-        padding: 6px;
-    }
+   做法:不逐条改规则,而是【整体覆盖 theme.css 的字号与间距令牌】,
+   组件层写的 var(--fs-*) / var(--s*) 会自动跟着降档或升档。
+   加一个断点只需要改这里的一组数字,不用去 component.css 里翻。
+
+   为什么用 body 而不是 :root 做选择器:
+   本文件在 theme.css 之【前】加载,如果这里也写 :root,
+   同特异度下会被后加载的 theme.css:root 覆盖掉。
+   而 body 是另一个元素,它自己的声明对 body 及其后代天然生效,
+   不存在覆盖问题,也不用写 :root:root 之类的特异度 hack。
+   页面所有可见内容(含弹窗、toast)都挂在 body 下,覆盖范围足够。
+
+   已删除的内容:原文件里针对 .header h1 和 .seat.free/.sold/.selected/
+   .recommended 的规则。DOM 里根本没有 .header 元素(顶栏 id 是
+   #user-header),座位也是 Canvas 画的、不存在 .seat 元素,
+   那些规则打不中任何东西,是纯死代码。
+   座位的无障碍配色改由 accessibility.js 切 AppConfig 调色板实现。
+   ============================================================ */
+
+/* ============================================================
+   手机:≤640px
+   三栏改上下堆叠,左右面板由 panel.js 包成可折叠 <details>,
+   默认收起,把首屏让给座位图。
+   ============================================================ */
+@media (max-width: 640px) {
+  body {
+    --fs-xs: 11px;
+    --fs-sm: 12px;
+    --fs-md: 14px;
+    --fs-lg: 16px;
+    --fs-xl: 20px;
+    --fs-2xl: 24px;
+
+    --s4: 12px;
+    --s5: 16px;
+    --s6: 20px;
+  }
+
+  .main-container {
+    flex-direction: column;
+    padding: var(--s3);
+    gap: var(--s3);
+    margin-top: 52px;
+    min-height: calc(100vh - 52px);
+  }
+
+  .left-panel,
+  .right-panel {
+    flex: 0 0 auto;
+    width: 100%;
+    overflow-y: visible;
+  }
+
+  .cinema-container {
+    min-height: 300px;
+    padding: var(--s3);
+    order: -1; /* 座位图放最前面,手机上先看到主角 */
+  }
+
+  #user-header {
+    height: 52px;
+    padding: 0 var(--s3);
+    gap: var(--s2);
+  }
+
+  /* 顶栏在窄屏放不下,logo 文字与用户名让位,只保留图标与开关 */
+  .sc-brand__name {
+    display: none;
+  }
+
+  #current-username {
+    display: none;
+  }
+
+  .sc-header-actions {
+    gap: var(--s2);
+  }
+
+  .a11y-btn {
+    padding: 5px 8px;
+  }
+
+  /* 座位图例在窄屏换行,圆角胶囊改成普通圆角块 */
+  .seat-legend {
+    gap: var(--s3);
+    padding: var(--s2) var(--s3);
+    border-radius: var(--r-md);
+  }
+
+  .legend-sep {
+    display: none;
+  }
+
+  /* 后台表格在窄屏改单列,表格本身横向滚动 */
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-wrapper {
+    padding: var(--s3);
+  }
+
+  /* 弹窗贴边,toast 改为顶部通栏 */
+  .sc-modal {
+    max-width: 100%;
+  }
+
+  .sc-toast-stack {
+    top: calc(52px + var(--s2));
+    right: var(--s3);
+    left: var(--s3);
+  }
+
+  .sc-toast {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .login-box {
+    padding: var(--s5);
+  }
+
+  /* 手机端点击目标不小于 44px(触摸可达性) */
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .btn {
+    padding: 12px 18px;
+  }
 }
 
-/* 平板设备样式 */
-@media (min-width: 769px) and (max-width: 1024px) {
-    .left-panel {
-        flex: 0 0 200px;
-    }
-    
-    .right-panel {
-        flex: 0 0 250px;
-    }
-    
-    .cinema-container {
-        padding: 20px;
-    }
+/* ============================================================
+   平板:641px – 1024px
+   保持三栏但收窄两侧,把宽度让给座位图。
+   ============================================================ */
+@media (min-width: 641px) and (max-width: 1024px) {
+  body {
+    --fs-xs: 11px;
+    --fs-sm: 12px;
+    --fs-md: 14px;
+    --fs-lg: 17px;
+    --fs-xl: 22px;
+
+    --s5: 18px;
+    --s6: 24px;
+  }
+
+  .main-container {
+    padding: var(--s4);
+    gap: var(--s4);
+  }
+
+  .left-panel {
+    flex: 0 0 200px;
+    padding: var(--s4);
+  }
+
+  .right-panel {
+    flex: 0 0 250px;
+    padding: var(--s4);
+  }
+
+  .cinema-container {
+    padding: var(--s4);
+  }
+
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-/* 大屏幕样式 */
+/* ============================================================
+   桌面:≥1025px
+   ============================================================ */
 @media (min-width: 1025px) {
-    .main-container {
-        margin: 30px 0;
+  .main-container {
+    max-width: 1680px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* ============================================================
+   中等桌面:1025px – 1440px —— 把横向空间尽量让给座位图
+   ------------------------------------------------------------
+   为什么专门开这一档:
+   main.js 的 resizeCanvas() 是按 `容器宽度 × 0.6` 算画布高度的,
+   但座位按固定的 pixelsPerCm=0.35 绘制、需要固定约 462px 的高度。
+   于是容器一窄,画布就矮到装不下最后几排,座位被直接裁掉
+   (README 里记的老问题)。
+
+   左右面板每省一点宽度,画布就高 0.6 倍那么多。这里把两侧压到
+   200 / 256 并收紧间距,让 1366 和 1440 这两个最常见的笔记本宽度
+   回到安全区。
+   ⚠️ 这只是缓解。视口再窄(≲1280)仍会裁切,根治要改 main.js 的
+   resizeCanvas —— 见下面的注释。
+   ============================================================ */
+@media (min-width: 1025px) and (max-width: 1440px) {
+  body {
+    --s5: 16px;
+  }
+
+  .left-panel {
+    flex: 0 0 200px;
+    padding: var(--s4);
+  }
+
+  .right-panel {
+    flex: 0 0 256px;
+    padding: var(--s4);
+  }
+
+  .cinema-container {
+    padding: var(--s3);
+  }
+}
+
+/*
+  根治办法(需要组长在 js/app/main.js 改 4 行):
+
+    resizeCanvas(canvasEl) {
+      const container = document.querySelector(".cinema-container");
+      if (!container) return;
+      const w = container.clientWidth;
+      canvasEl.width = w;
+      canvasEl.height = Math.min(w * 0.6, 600);
+      // 画布装不下时,让渲染器按比例缩小内容,而不是把座位画到画布外面
+      if (this.renderer) {
+        const needed = 520;                  // 10 排座位在 0.35 px/cm 下所需高度
+        const scale = Math.min(1, canvasEl.height / needed);
+        this.renderer.setPixelsPerCm(0.35 * scale);
+      }
     }
-    
-    .left-panel {
-        padding: 20px;
-    }
-    
-    .right-panel {
-        padding: 20px;
-    }
-    
-    .cinema-container {
-        padding: 30px;
-    }
+
+  renderer.js 里 setPixelsPerCm(value) 这个方法本来就有(renderer.js:26),
+  只是 main.js 从来没调用过。
+*/
+
+/* 超宽屏再放大一档,避免 4K 下字小得看不清 */
+@media (min-width: 1800px) {
+  body {
+    --fs-sm: 14px;
+    --fs-md: 16px;
+    --fs-lg: 19px;
+    --fs-xl: 26px;
+  }
 }
 
-/* 无障碍模式响应式调整 */
-.accessibility-large-font .header h1 {
-    font-size: 1.8em;
+/* ============================================================
+   无障碍:大字体模式
+   同样走令牌整体升档,不逐个组件写死。
+   特异度 (0,1,1) 高于上面各断点里的 body (0,0,1),
+   所以在任何屏幕尺寸下都能生效。
+   ============================================================ */
+body.accessibility-large-font {
+  --fs-xs: 15px;
+  --fs-sm: 17px;
+  --fs-md: 20px;
+  --fs-lg: 24px;
+  --fs-xl: 30px;
+  --fs-2xl: 40px;
+
+  --s2: 10px;
+  --s3: 15px;
+  --s4: 20px;
+  --s5: 28px;
 }
 
-.accessibility-large-font .card {
-    font-size: 1.2em;
+/* 放大后左右栏需要更多宽度,否则文字会挤成一条 */
+@media (min-width: 1025px) {
+  body.accessibility-large-font .left-panel {
+    flex: 0 0 300px;
+  }
+
+  body.accessibility-large-font .right-panel {
+    flex: 0 0 380px;
+  }
 }
 
-.accessibility-high-contrast .card {
-    background: #000;
-    color: #fff;
-    border: 1px solid #fff;
+/* 大字体下按钮和点击目标同步放大 */
+body.accessibility-large-font .icon-btn {
+  width: 36px;
+  height: 36px;
 }
 
-.accessibility-high-contrast .btn {
-    background-color: #fff;
-    color: #000;
-    border: 1px solid #fff;
+body.accessibility-large-font .star {
+  width: 40px;
+  height: 40px;
 }
 
-.accessibility-colorblind .seat.free {
-    background-color: #00FF00;
+/* ============================================================
+   动效降级
+   系统层面开了「减少动态效果」时关闭所有动画,
+   这对前庭功能敏感的用户是必要的。
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-.accessibility-colorblind .seat.sold {
-    background-color: #FF0000;
-}
+/* ============================================================
+   打印:方便把订单打成纸质票
+   ============================================================ */
+@media print {
+  #user-header,
+  .left-panel,
+  .seat-legend,
+  .sc-toast-stack,
+  #purchase-btn {
+    display: none !important;
+  }
 
-.accessibility-colorblind .seat.selected {
-    background-color: #0000FF;
-}
-
-.accessibility-colorblind .seat.recommended {
-    background-color: #FFFF00;
-    border: 2px solid #FFA500;
+  .main-container {
+    margin-top: 0;
+    padding: 0;
+  }
 }
