@@ -89,13 +89,11 @@ class MainController {
     }
     return this.cinema;
   }
-
   initMainApplication(user) {
     this.currentUser = user;
     // 当前用户名显示
     this.uiPanel.setCurrentUser(user.username);
     this.uiPanel.switchView("main");
-
     // === 清理上一轮残留的监听器，防止堆积 ===
     if (this.interaction) {
       this.interaction.disable();
@@ -103,26 +101,21 @@ class MainController {
     if (this.resizeHandler) {
       window.removeEventListener("resize", this.resizeHandler);
     }
-
     const lastHallType = this.storage.getHallType("small");
     if (this.uiPanel.dateOptions && this.uiPanel.dateOptions[0]) {
       this.currentDateInfo = this.uiPanel.dateOptions[0];
     }
     this.initCinemaData(lastHallType);
-
     const hallSelect = document.getElementById("hall-select");
     if (hallSelect) {
       hallSelect.value = lastHallType;
     }
-
     const canvasEl = document.getElementById("cinema-canvas");
     if (canvasEl) {
       this.resizeCanvas(canvasEl);
-
       // 保存resize处理器的引用，以便登出时移除
       this.resizeHandler = () => this.handleResize(canvasEl);
       window.addEventListener("resize", this.resizeHandler);
-
       this.renderer = new CanvasRenderer(canvasEl, this.cinema);
       this.renderer.setHallType(lastHallType);
       this.heatmapRenderer = new HeatmapRenderer(this.renderer);
@@ -137,30 +130,9 @@ class MainController {
     }
     this.recommendEngine = new RecommendEngine();
     this.accessibilityManager = new AccessibilityManager(this.eventBus);
-
-    // === 加载并显示用户的历史订单 ===
+    // === 加载并显示用户的历史订单列表 ===
     const orders = this.storage.getOrders();
-    if (orders.length > 0) {
-      const lastOrder = orders[orders.length - 1]; // 显示最近的一笔订单
-      const orderDiv = document.getElementById("order-info");
-      if (orderDiv) {
-        const seatsInfo = lastOrder.seatList
-          .map((s) => `${s.row + 1}排${s.col + 1}座`)
-          .join("、");
-        orderDiv.innerHTML = `
-          <div class="card" style="background: #fff; border: 1px solid #e0e0e0;">
-            <h3 style="color: #2196F3; margin-bottom: 10px;">最近订单</h3>
-            <p><strong>用户名:</strong> ${lastOrder.username || "未知"}</p>
-            <p><strong>观影日期:</strong> ${lastOrder.date || "未知"}</p>
-            <p><strong>订单号:</strong> ${lastOrder.id.substring(lastOrder.id.length - 6)}</p>
-            <p><strong>座位信息:</strong> ${seatsInfo}</p>
-            <p><strong>总金额:</strong> ¥${lastOrder.amount}</p>
-            <p><strong>状态:</strong> ${lastOrder.status === "paid" ? "已支付" : lastOrder.status}</p>
-            <p><strong>时间:</strong> ${new Date(lastOrder.timestamp).toLocaleString()}</p>
-          </div>
-        `;
-      }
-    }
+    this.uiPanel.setOrderList(orders);
   }
 
   handleResize(canvasEl) {
@@ -317,8 +289,11 @@ class MainController {
       order.username = this.currentUser ? this.currentUser.username : "未知";
       this.storage.saveOrder(order);
       this.uiPanel.setOrderInfo(order);
+      // 刷新右栏订单列表,新订单出现在最上方
+      this.uiPanel.setOrderList(this.storage.getOrders());
       // 更新座位状态并持久化
       this.selectedSeats.forEach((s) => s.setStatus("sold"));
+
       const hallType = this.storage.getHallType("small");
       this.storage.saveSeatStates(
         hallType,
@@ -527,6 +502,38 @@ class MainController {
       }
     });
 
+    // === 普通用户退票 ===
+    // 与 admin:refund-order 走同一份 StorageManager.refundOrder,
+    // 区别仅在退款成功后的视图刷新:普通用户刷新右栏订单列表,管理员刷新后台表格。
+    this.eventBus.on("user:refund-order", (orderId) => {
+      console.log("[Main] User refunding order:", orderId);
+      const updatedOrder = this.storage.refundOrder(orderId);
+      if (updatedOrder) {
+        // 仅在Cinema存在时更新座位状态
+        if (this.cinema) {
+          updatedOrder.seatList.forEach((seatData) => {
+            const seat = this.cinema.getSeat(seatData.row, seatData.col);
+            if (seat && seat.status === "sold") {
+              seat.setStatus("available");
+              const hallType = this.storage.getHallType("small");
+              this.storage.saveSeatState(
+                hallType,
+                updatedOrder.dayOfWeek != null ? updatedOrder.dayOfWeek : 0,
+                seat,
+              );
+            }
+          });
+        }
+        // 判空保护,退票时如果用户在管理员视图,this.renderer可能不存在
+        if (this.renderer) this.renderer.render();
+        // 刷新右栏订单列表,已退票订单会显示为「已退票」状态,按钮消失
+        this.uiPanel.setOrderList(this.storage.getOrders());
+        this.dialogManager.showSuccess("退票成功");
+      } else {
+        this.dialogManager.showError("退票失败：订单不存在或状态异常");
+      }
+    });
+
     this.eventBus.on("accessibility:change", (config) => {
       console.log("[Main] Accessibility settings changed", config);
       if (this.renderer) this.renderer.render();
@@ -544,13 +551,11 @@ class MainController {
       // 4. 切换到登录视图
       this.uiPanel.switchView("login");
       // 5. 清空推荐、已选座位和订单信息显示
+      // 5. 清空推荐、已选座位和订单信息显示
       this.uiPanel.setRecommendation([]);
       this.uiPanel.setSelectedSeats([]);
       // 清空订单信息显示
-      const orderDiv = document.getElementById("order-info");
-      if (orderDiv) {
-        orderDiv.innerHTML = "<p>订单信息</p>";
-      }
+      this.uiPanel.setOrderList([]);
 
       if (this.interaction) {
         this.interaction.disable();

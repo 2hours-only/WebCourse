@@ -379,7 +379,6 @@ export class UIPanel {
       ["#selected-seats", "已选座位"],
       ["#order-info", "订单"],
     ];
-
     sections.forEach(([selector, text]) => {
       const el = right.querySelector(selector);
       if (!el) return;
@@ -391,8 +390,15 @@ export class UIPanel {
       el.parentNode.insertBefore(wrapper, el);
       wrapper.appendChild(title);
       wrapper.appendChild(el);
-    });
 
+      // 将购票按钮移入「已选座位」面板内部，位于 #selected-seats 下方
+      if (selector === "#selected-seats") {
+        const purchaseBtn = right.querySelector("#purchase-btn");
+        if (purchaseBtn) {
+          wrapper.appendChild(purchaseBtn);
+        }
+      }
+    });
     right.dataset.enhanced = "1";
   }
 
@@ -409,7 +415,6 @@ export class UIPanel {
         this.eventBus.emit("user:login", data);
       });
     }
-
     const registerBtn = document.getElementById("register-btn");
     if (registerBtn) {
       registerBtn.addEventListener("click", () => {
@@ -418,7 +423,6 @@ export class UIPanel {
         this.eventBus.emit("user:register", data);
       });
     }
-
     // 回车直接登录,少一次鼠标移动
     const passwordInput = document.getElementById("login-password");
     if (passwordInput) {
@@ -426,7 +430,6 @@ export class UIPanel {
         if (e.key === "Enter" && loginBtn) loginBtn.click();
       });
     }
-
     const recommendBtn = this.container.querySelector("#recommend-btn");
     if (recommendBtn) {
       recommendBtn.addEventListener("click", () => {
@@ -439,25 +442,21 @@ export class UIPanel {
         }
       });
     }
-
     const aiRecommendBtn = document.getElementById("ai-recommend-btn");
     if (aiRecommendBtn) {
       aiRecommendBtn.addEventListener("click", () => {
         const apiKeyInput = document.getElementById("api-key-input");
         const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
-
         if (!apiKey) {
           dialog.showError("请先在上方填入你的 AI API Key");
           return;
         }
-
         this.eventBus.emit("ai:recommend", {
           apiKey,
           userInput: this.getUserInput(),
         });
       });
     }
-
     const purchaseBtn = this.container.querySelector("#purchase-btn");
     if (purchaseBtn) {
       purchaseBtn.addEventListener("click", () => {
@@ -471,7 +470,6 @@ export class UIPanel {
         }
         const total = seats.reduce((sum, s) => sum + seatPrice(s), 0);
         const list = seats.map(seatLabel).join("、");
-
         dialog
           .showConfirm(
             `即将购买 <strong>${escapeHtml(list)}</strong>,共 ${seats.length} 张,合计 <strong>¥${total}</strong>。`,
@@ -482,14 +480,12 @@ export class UIPanel {
           });
       });
     }
-
     const hallSelect = document.getElementById("hall-select");
     if (hallSelect) {
       hallSelect.addEventListener("change", () => {
         this.eventBus.emit("hall:switch", this.getHallSelection());
       });
     }
-
     const dateSelect = document.getElementById("date-select");
     if (dateSelect) {
       dateSelect.innerHTML = "";
@@ -519,14 +515,12 @@ export class UIPanel {
         this.eventBus.emit("date:switch", parseInt(dateSelect.value, 10));
       });
     }
-
     const fontToggle = document.getElementById("font-toggle");
     if (fontToggle) {
       fontToggle.addEventListener("click", () => {
         this.eventBus.emit("accessibility:toggle-font");
       });
     }
-
     const typeSelect = document.getElementById("type-select");
     if (typeSelect) {
       const peopleCount = document.getElementById("people-count");
@@ -551,28 +545,30 @@ export class UIPanel {
         syncPeopleCount();
       });
     }
-
     const logoutBtn = document.getElementById("logout-btn");
     if (logoutBtn) {
       logoutBtn.addEventListener("click", () => {
         this.eventBus.emit("user:logout");
       });
     }
-
-    // 后台的退票按钮是动态渲染的,用事件委托
+    // 退票按钮是动态渲染的,用事件委托。
+    // 同一个 .btn-refund 类既会出现在管理员后台表格里,也会出现在普通用户右栏的订单卡上,
+    // 通过按钮所在的容器区分事件名,main.js 里两边各自有监听器处理。
     this.container.addEventListener("click", (e) => {
       const refundBtn = e.target.closest(".btn-refund");
       if (!refundBtn) return;
       const orderId = refundBtn.getAttribute("data-order-id");
       if (!orderId) return;
-
+      // 区分管理员后台与普通用户右栏
+      const isInAdmin = refundBtn.closest(".admin-wrapper");
+      const eventName = isInAdmin ? "admin:refund-order" : "user:refund-order";
       dialog
         .showConfirm(
           `确定要为订单 <strong>${escapeHtml(orderId.slice(-6))}</strong> 办理退票吗?座位会重新放出。`,
           { title: "确认退票", confirmText: "确认退票", danger: true },
         )
         .then((ok) => {
-          if (ok) this.eventBus.emit("admin:refund-order", orderId);
+          if (ok) this.eventBus.emit(eventName, orderId);
         });
     });
   }
@@ -900,6 +896,62 @@ export class UIPanel {
         <p><strong>座位</strong> ${escapeHtml(seatsInfo)}</p>
         <p><strong>总金额</strong> ¥${order.amount}</p>
         <p><strong>下单时间</strong> ${new Date(order.timestamp).toLocaleString()}</p>
+      </div>
+    `;
+  }
+  /**
+   * 显示当前用户的订单列表,每个未退票/未取消的订单带退票按钮。
+   * 用于右栏「订单」区块,替代原来只显示最近一笔订单的占位逻辑。
+   * @param {Array<Object>} orders 当前用户的订单(普通用户为自己,管理员为全部)
+   */
+  setOrderList(orders) {
+    const orderDiv = document.getElementById("order-info");
+    if (!orderDiv) return;
+    const list = Array.isArray(orders) ? orders : [];
+    if (list.length === 0) {
+      orderDiv.innerHTML = `<p class="empty-hint">还没有订单</p>`;
+      return;
+    }
+    // 倒序显示,最近下单的排最前
+    const sorted = [...list].sort(
+      (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
+    );
+    orderDiv.innerHTML = `<div class="order-list">${sorted
+      .map((order) => this._renderOrderCard(order))
+      .join("")}</div>`;
+  }
+
+  /**
+   * 渲染单张订单卡片 HTML。已支付订单带退票按钮。
+   * @param {Object} order 订单对象
+   * @returns {string}
+   */
+  _renderOrderCard(order) {
+    const status = order.status || "pending";
+    const statusText = ORDER_STATUS_TEXT[status] || status;
+    const seatsInfo = (order.seatList || []).map(seatLabel).join("、");
+    const canRefund = status === "paid";
+    return `
+      <div class="order-card card${canRefund ? " card--success" : ""}">
+        <div class="order-card__head">
+          <span class="order-card__id">#${escapeHtml(String(order.id).slice(-6))}</span>
+          <span class="badge badge--${status}">${escapeHtml(statusText)}</span>
+        </div>
+        <div class="order-card__body">
+          <p><strong>日期</strong> ${escapeHtml(order.date || "未知")}</p>
+          <p><strong>座位</strong> ${escapeHtml(seatsInfo)}</p>
+          <p><strong>金额</strong> ¥${order.amount}</p>
+          <p><strong>下单</strong> ${new Date(order.timestamp).toLocaleString()}</p>
+        </div>
+        ${
+          canRefund
+            ? `<div class="order-card__actions">
+                 <button type="button" class="btn btn-refund" data-order-id="${escapeHtml(
+                   order.id,
+                 )}">退票</button>
+               </div>`
+            : ""
+        }
       </div>
     `;
   }

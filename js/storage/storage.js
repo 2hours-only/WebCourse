@@ -86,7 +86,7 @@ export class StorageManager {
     const allOrders = JSON.parse(localStorage.getItem(KEY_ORDERS) || "[]");
     const orderData = {
       id: order.id,
-      username: currentUser.username, 
+      username: currentUser.username,
       seatList: order.seatList.map((s) => ({
         row: s.row,
         col: s.col,
@@ -177,7 +177,9 @@ export class StorageManager {
       return null;
     }
     if (target.status === "refunded" || target.status === "cancelled") {
-      console.warn(`[Storage] 订单 ${orderId} 状态为 ${target.status},不可退票`);
+      console.warn(
+        `[Storage] 订单 ${orderId} 状态为 ${target.status},不可退票`,
+      );
       return null;
     }
 
