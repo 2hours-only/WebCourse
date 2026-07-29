@@ -16,10 +16,11 @@
   gap: var(--s5);
   padding: var(--s5);
   margin-top: 56px;
-  min-height: calc(100vh - 56px);
-  height: auto;
-  background: var(--bg);
+  height: calc(100vh - 56px); /* 固定高度，防止子元素撑开容器 */
+  background: transparent; /* 背景由轮播图层提供 */
   align-items: stretch;
+  position: relative;
+  overflow: hidden; /* 防止内容溢出导致整体变长 */
 }
 
 /* 供 panel.js 的 switchView 使用。
@@ -101,18 +102,22 @@
   background: var(--surface-2);
 }
 
-/* ---------- 三栏 ---------- */
 .left-panel,
 .right-panel {
   padding: var(--s5);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(22, 22, 28, 0.75);
+  backdrop-filter: blur(8px) saturate(180%);
+  -webkit-backdrop-filter: blur(8px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-1);
   display: flex;
   flex-direction: column;
   gap: var(--s5);
   overflow-y: auto;
+  position: relative;
+  z-index: 1;
+  min-height: 0; /* 允许 flex 子项收缩并在内部滚动，防止撑开父容器 */
 }
 
 .left-panel {
@@ -129,9 +134,12 @@
 .cinema-container {
   flex: 1;
   min-width: 0;
+  min-height: 0; /* 允许收缩，防止撑开 */
   padding: var(--s5);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(22, 22, 28, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-1);
   display: flex;
@@ -141,6 +149,7 @@
   gap: var(--s4);
   overflow: auto;
   position: relative;
+  z-index: 1;
 }
 
 /* 银幕方向的一层极淡冷光,让画布区域有纵深,不至于是一块死平的深色 */
@@ -183,8 +192,11 @@
   border: 1px solid transparent;
   border-radius: var(--r-sm);
   cursor: pointer;
-  transition: background var(--transition), border-color var(--transition),
-    color var(--transition), box-shadow var(--transition),
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    box-shadow var(--transition),
     transform var(--transition);
   white-space: nowrap;
   -webkit-user-select: none;
@@ -322,7 +334,9 @@ textarea {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  transition: border-color var(--transition), box-shadow var(--transition);
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition);
 }
 
 input::placeholder,
@@ -341,10 +355,15 @@ textarea:focus {
 select {
   appearance: none;
   -webkit-appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--text-mute) 50%),
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-mute) 50%),
     linear-gradient(135deg, var(--text-mute) 50%, transparent 50%);
-  background-position: calc(100% - 16px) center, calc(100% - 11px) center;
-  background-size: 5px 5px, 5px 5px;
+  background-position:
+    calc(100% - 16px) center,
+    calc(100% - 11px) center;
+  background-size:
+    5px 5px,
+    5px 5px;
   background-repeat: no-repeat;
   padding-right: 32px;
   cursor: pointer;
@@ -771,7 +790,9 @@ textarea {
   border: 1px solid transparent;
   border-radius: var(--r-sm);
   cursor: pointer;
-  transition: color var(--transition), background var(--transition);
+  transition:
+    color var(--transition),
+    background var(--transition);
 }
 
 .icon-btn:hover {
@@ -845,7 +866,9 @@ textarea {
   border: none;
   color: var(--surface-3);
   cursor: pointer;
-  transition: color var(--transition), transform var(--transition);
+  transition:
+    color var(--transition),
+    transform var(--transition);
 }
 
 .star:hover {
@@ -938,7 +961,9 @@ textarea {
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: background var(--transition), color var(--transition);
+  transition:
+    background var(--transition),
+    color var(--transition);
 }
 
 .a11y-btn:hover {
@@ -972,13 +997,13 @@ textarea {
   background: var(--bg);
   z-index: var(--z-login);
 }
-
 /* 影厅光束感的背景,让登录页不是一块死黑 */
 #login-layer::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(
+  background:
+    radial-gradient(
       70% 50% at 50% -10%,
       rgba(229, 181, 103, 0.13) 0%,
       transparent 60%
@@ -989,21 +1014,76 @@ textarea {
       transparent 60%
     );
   pointer-events: none;
+  z-index: 1;
+}
+
+/* 登录背景图片轮播容器 */
+.login-bg-container {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* 登录背景图片轮播层 */
+.login-bg-layer {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 1.5s ease-in-out;
+}
+
+.login-bg-layer.active {
+  opacity: 1;
+}
+
+/* 购票界面背景图片轮播容器 */
+.main-bg-container {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* 购票界面背景图片轮播层 */
+.main-bg-layer {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 2s ease-in-out;
+}
+
+.main-bg-layer.active {
+  opacity: 1;
 }
 
 .login-box {
   position: relative;
+  z-index: 2;
   width: 100%;
   max-width: 380px;
   padding: var(--s6);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(22, 22, 28, 0.55);
+  backdrop-filter: blur(5px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-2);
   text-align: left;
   display: flex;
   flex-direction: column;
   gap: var(--s3);
+}
+
+.login-box input[type="text"],
+.login-box input[type="password"] {
+  background: rgba(29, 29, 37, 0.6);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .login-box h2 {
@@ -1220,6 +1300,10 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: var(--s5);
+  height: 100%; /* 充满固定高度的父容器，避免因父级 overflow: hidden 被裁切 */
+  overflow-y: auto; /* 允许管理员后台内容过多时在内部滚动 */
+  min-height: 0; /* Flexbox 子项收缩所需，配合 overflow-y 生效 */
+  min-width: 0; /* 防止作为 flex 子项时，内部内容撑破父容器宽度 */
 }
 
 .admin-header {
@@ -1241,6 +1325,11 @@ textarea {
   grid-template-columns: 2fr 1fr;
   gap: var(--s5);
   align-items: start;
+}
+
+.admin-grid > section,
+.admin-grid > .card {
+  min-width: 0; /* 允许 Grid 子项收缩以适应分配的宽度，防止内部表格等内容撑爆容器 */
 }
 
 .admin-table-scroll {

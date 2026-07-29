@@ -146,7 +146,7 @@ export class CanvasRenderer {
     const hallParams = this.getHallParams();
     const leftMostPos = MathUtils.arcToCartesian(hallParams.rows - 1, 0, hallParams);
 
-    ctx.fillStyle = "#666666";
+    ctx.fillStyle = "#dddddd";
     ctx.font = "12px Arial";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
@@ -161,7 +161,7 @@ export class CanvasRenderer {
       if (r === AppConfig.physical.aisleRowIndex - 1) {
         ctx.fillStyle = "#999999";
         ctx.fillText("(过道)", labelX, labelY + 16);
-        ctx.fillStyle = "#666666";
+        ctx.fillStyle = "#dddddd";
       }
     }
   }
@@ -170,7 +170,7 @@ export class CanvasRenderer {
     const ctx = this.ctx;
     const hallParams = this.getHallParams();
 
-    ctx.fillStyle = "#666666";
+    ctx.fillStyle = "#dddddd";
     ctx.font = "12px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";

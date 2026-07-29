@@ -165,8 +165,8 @@ class MainController {
 
   handleResize(canvasEl) {
     this.resizeCanvas(canvasEl);
+    // 修复 bug：移除单独调用 heatmapRenderer.render()，因为 renderer.render() 内部已经按正确顺序（先热力图后座位）调用了它，单独再调会导致热力图覆盖在座位上方。
     if (this.renderer) this.renderer.render();
-    if (this.heatmapRenderer) this.heatmapRenderer.render();
   }
 
   resizeCanvas(canvasEl) {
@@ -571,7 +571,6 @@ class MainController {
     });
   }
 
-
   async aiRecommend(apiKey, userInput) {
     console.log("[Main] AI Recommend started with input:", userInput);
     if (!apiKey) {
@@ -611,8 +610,6 @@ class MainController {
       alert(`AI推荐失败: ${error.message}`);
     }
   }
-
- 
 }
 
 new MainController();

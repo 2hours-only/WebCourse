@@ -79,9 +79,14 @@ export const AppConfig = {
   },
 
   // ==================== 辅助方法 ====================
-  /**
-   * 获取指定影厅的弧形参数
-   */
+  // ==================== 背景图片列表 ====================
+  // 登录界面背景图片列表
+  loginBackgroundImages: ["assets/1.jpg", "assets/2.jpg", "assets/3.jpg"],
+  // 购票界面背景图片列表
+  mainBackgroundImages: ["assets/1.jpg", "assets/2.jpg", "assets/3.jpg"],
+
+  // ==================== 辅助方法 ====================
+  /** * 获取指定影厅的弧形参数 */
   getHallParams(hallType) {
     return this.arcParams[hallType] || this.arcParams.small;
   },

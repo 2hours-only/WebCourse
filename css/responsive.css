@@ -45,13 +45,15 @@
     gap: var(--s3);
     margin-top: 52px;
     min-height: calc(100vh - 52px);
+    height: auto; /* 手机端允许页面整体滚动 */
+    overflow: visible;
   }
-
   .left-panel,
   .right-panel {
     flex: 0 0 auto;
     width: 100%;
     overflow-y: visible;
+    min-height: auto; /* 手机端允许自然展开 */
   }
 
   .cinema-container {

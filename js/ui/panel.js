@@ -74,6 +74,53 @@ export class UIPanel {
     this._enhanceLeftPanel();
     this._enhanceCinema();
     this._enhanceRightPanel();
+    this._enhanceMainBackground();
+  }
+
+  _enhanceMainBackground() {
+    if (!this.mainContainer || this.mainContainer.dataset.bgEnhanced) return;
+    const images = AppConfig.mainBackgroundImages || [];
+    if (images.length === 0) return;
+
+    // 购票界面元素较多，为了透出背景，将原本纯色底置空
+    this.mainContainer.style.background = "transparent";
+
+    const bgContainer = document.createElement("div");
+    bgContainer.className = "main-bg-container";
+
+    const layer1 = document.createElement("div");
+    layer1.className = "main-bg-layer active";
+    layer1.style.backgroundImage = `url('${images[0]}')`;
+
+    const layer2 = document.createElement("div");
+    layer2.className = "main-bg-layer";
+
+    bgContainer.appendChild(layer1);
+    bgContainer.appendChild(layer2);
+
+    this.mainContainer.insertBefore(bgContainer, this.mainContainer.firstChild);
+
+    let currentIndex = 0;
+    let currentLayer = layer1;
+    let nextLayer = layer2;
+
+    if (this.mainBgInterval) {
+      clearInterval(this.mainBgInterval);
+    }
+
+    this.mainBgInterval = setInterval(() => {
+      currentIndex = (currentIndex + 1) % images.length;
+      nextLayer.style.backgroundImage = `url('${images[currentIndex]}')`;
+      nextLayer.offsetHeight;
+      nextLayer.classList.add("active");
+      currentLayer.classList.remove("active");
+
+      const temp = currentLayer;
+      currentLayer = nextLayer;
+      nextLayer = temp;
+    }, 10000); // 购票界面切换时间
+
+    this.mainContainer.dataset.bgEnhanced = "1";
   }
 
   _enhanceLogin() {
@@ -82,19 +129,20 @@ export class UIPanel {
       : null;
     if (!box || box.dataset.enhanced) return;
 
+    // 初始化登录界面背景图片轮播
+    this._initLoginBackground();
+
     const heading = box.querySelector("h2");
     if (heading) {
       const brand = document.createElement("div");
       brand.className = "login-box__brand";
       brand.innerHTML = `<span class="sc-brand__dot"></span><span>SmartCinema</span>`;
       box.insertBefore(brand, heading);
-
       const sub = document.createElement("p");
       sub.className = "login-box__sub";
       sub.textContent = "登录后即可选座购票,三步完成。";
       heading.insertAdjacentElement("afterend", sub);
     }
-
     // 把登录/注册两个按钮并成一行
     const loginBtn = box.querySelector("#login-btn");
     const registerBtn = box.querySelector("#register-btn");
@@ -106,14 +154,65 @@ export class UIPanel {
       loginBtn.parentNode.insertBefore(actions, loginBtn);
       actions.appendChild(loginBtn);
       actions.appendChild(registerBtn);
-
       const hint = document.createElement("p");
       hint.className = "login-box__hint";
       hint.innerHTML = `首次使用请先注册 · 管理员账号 <code>admin / admin</code>`;
       actions.insertAdjacentElement("afterend", hint);
     }
-
     box.dataset.enhanced = "1";
+  }
+
+  // 初始化登录背景图片轮播
+  _initLoginBackground() {
+    if (!this.loginLayer) return;
+    // 登录界面图片列表
+    const images = AppConfig.loginBackgroundImages || [];
+    if (images.length === 0) return;
+
+    // 创建背景容器及两个交替显示的图层
+    const bgContainer = document.createElement("div");
+    bgContainer.className = "login-bg-container";
+
+    const layer1 = document.createElement("div");
+    layer1.className = "login-bg-layer active";
+    layer1.style.backgroundImage = `url('${images[0]}')`;
+
+    const layer2 = document.createElement("div");
+    layer2.className = "login-bg-layer";
+
+    bgContainer.appendChild(layer1);
+    bgContainer.appendChild(layer2);
+    // 插入到登录层最前面，确保在 login-box 之下
+    this.loginLayer.insertBefore(bgContainer, this.loginLayer.firstChild);
+
+    let currentIndex = 0;
+    let currentLayer = layer1;
+    let nextLayer = layer2;
+
+    // 避免重复初始化时产生多个定时器
+    if (this.loginBgInterval) {
+      clearInterval(this.loginBgInterval);
+    }
+
+    // 每10秒切换一次图片，带淡入淡出效果
+    this.loginBgInterval = setInterval(() => {
+      currentIndex = (currentIndex + 1) % images.length;
+
+      // 预加载下一张图片到备用图层
+      nextLayer.style.backgroundImage = `url('${images[currentIndex]}')`;
+
+      // 强制重绘以确保 transition 生效
+      nextLayer.offsetHeight;
+
+      // 交换 active 类实现淡入淡出
+      nextLayer.classList.add("active");
+      currentLayer.classList.remove("active");
+
+      // 交换两个图层的引用，下一次轮换使用
+      const temp = currentLayer;
+      currentLayer = nextLayer;
+      nextLayer = temp;
+    }, 10000);
   }
 
   _enhanceHeader() {
@@ -396,7 +495,15 @@ export class UIPanel {
       dateSelect.innerHTML = "";
       this.dateOptions = [];
       const today = new Date();
-      const weekdayMap = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+      const weekdayMap = [
+        "周日",
+        "周一",
+        "周二",
+        "周三",
+        "周四",
+        "周五",
+        "周六",
+      ];
       for (let i = 0; i < 7; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() + i);
@@ -420,14 +527,28 @@ export class UIPanel {
       });
     }
 
-    // 团体票才需要填成员信息
     const typeSelect = document.getElementById("type-select");
     if (typeSelect) {
+      const peopleCount = document.getElementById("people-count");
+      const syncPeopleCount = () => {
+        if (!peopleCount) return;
+        if (typeSelect.value === "personal") {
+          peopleCount.value = 1;
+          peopleCount.disabled = true;
+        } else if (typeSelect.value === "couple") {
+          peopleCount.value = 2;
+          peopleCount.disabled = true;
+        } else {
+          peopleCount.disabled = false;
+        }
+      };
+      syncPeopleCount();
       typeSelect.addEventListener("change", () => {
         const memberArea = document.getElementById("member-info-area");
         if (memberArea) {
           memberArea.classList.toggle("hidden", typeSelect.value !== "group");
         }
+        syncPeopleCount();
       });
     }
 
