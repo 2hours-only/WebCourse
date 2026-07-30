@@ -10,6 +10,7 @@ import { DialogManager } from "../ui/dialog.js";
 import { AccessibilityManager } from "../ui/accessibility.js";
 import { StorageManager } from "../storage/storage.js";
 import { EventBus } from "../utils/eventBus.js";
+import { AppConfig } from "../utils/config.js";
 import cinemaData from "../data/cinemaData.js";
 
 class MainController {
@@ -18,12 +19,16 @@ class MainController {
     this.selectedSeats = [];
     this.dialogManager = new DialogManager();
     this.currentDateInfo = { dayOfWeek: new Date().getDay(), dateStr: "未知" };
+    this.currentHallType = "small";
+    this.syncClientId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    this.syncChannel = null;
     this.init();
   }
 
   init() {
     console.log("[Main] App Starting...");
     this.storage = new StorageManager();
+    this.initSyncChannel();
     this.uiPanel = new UIPanel(
       document.querySelector(".main-container"),
       this.eventBus,
@@ -51,7 +56,132 @@ class MainController {
 
     this.registerEvents();
   }
+
+  initSyncChannel() {
+    const syncKey = "smartcinema-sync-event";
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        this.syncChannel = new BroadcastChannel("smartcinema-sync");
+        this.syncChannel.onmessage = (event) => {
+          this.handleSyncMessage(event.data);
+        };
+      } catch (e) {
+        console.warn("[Sync] BroadcastChannel unavailable", e);
+      }
+    }
+
+    if (!this.syncChannel) {
+      window.addEventListener("storage", (event) => {
+        if (event.key !== syncKey || !event.newValue) return;
+        let message = null;
+        try {
+          message = JSON.parse(event.newValue);
+        } catch (error) {
+          console.warn("[Sync] Invalid storage sync payload", error);
+          return;
+        }
+        this.handleSyncMessage(message);
+      });
+    }
+  }
+
+  broadcastSyncEvent(type, payload) {
+    const message = {
+      type,
+      payload,
+      source: this.syncClientId,
+      timestamp: Date.now(),
+    };
+    if (this.syncChannel) {
+      this.syncChannel.postMessage(message);
+      return;
+    }
+    try {
+      const syncKey = "smartcinema-sync-event";
+      localStorage.setItem(syncKey, JSON.stringify(message));
+      localStorage.removeItem(syncKey);
+    } catch (error) {
+      console.warn("[Sync] Failed to broadcast sync event", error);
+    }
+  }
+
+  handleSyncMessage(message) {
+    if (!message || message.source === this.syncClientId) return;
+    if (message.type === "seat:sold") {
+      this.applyRemoteSeatState(message.payload, "sold");
+    } else if (message.type === "seat:available") {
+      this.applyRemoteSeatState(message.payload, "available");
+    } else if (message.type === "order:refunded") {
+      this.applyRemoteOrderRefund(message.payload);
+    }
+  }
+
+  applyRemoteSeatState(payload, targetStatus) {
+    if (!this.cinema || !payload) return;
+    const { hallType, dayOfWeek, seats } = payload;
+    if (
+      !hallType ||
+      dayOfWeek == null ||
+      !Array.isArray(seats) ||
+      hallType !== this.currentHallType ||
+      dayOfWeek !== this.currentDateInfo.dayOfWeek
+    ) {
+      return;
+    }
+
+    let seatChanged = false;
+    seats.forEach((seatData) => {
+      const seat = this.cinema.getSeat(seatData.row, seatData.col);
+      if (!seat) return;
+      if (seat.status === targetStatus) return;
+      seat.setStatus(targetStatus);
+      seatChanged = true;
+    });
+
+    if (!seatChanged) return;
+
+    if (this.renderer) {
+      this.renderer.render();
+    }
+
+    // 如果当前页面正在选中已被售出的座位，移除它们
+    if (targetStatus === "sold" && this.selectedSeats.length > 0) {
+      this.selectedSeats = this.selectedSeats.filter(
+        (seat) => seat.status !== "sold",
+      );
+      this.uiPanel.setSelectedSeats(this.selectedSeats);
+    }
+
+    if (this.isAdminView()) {
+      this.eventBus.emit("admin:view-orders");
+    }
+
+    if (this.currentUser && this.currentUser.role !== "admin") {
+      this.uiPanel.setOrderList(this.storage.getOrders());
+    }
+  }
+
+  applyRemoteOrderRefund(payload) {
+    if (!payload) return;
+    const { hallType, dayOfWeek } = payload;
+    if (!hallType || dayOfWeek == null) return;
+    this.applyRemoteSeatState(payload, "available");
+
+    if (this.isAdminView()) {
+      this.eventBus.emit("admin:view-orders");
+    }
+
+    if (this.currentUser && this.currentUser.role !== "admin") {
+      this.uiPanel.setOrderList(this.storage.getOrders());
+    }
+  }
+
+  isAdminView() {
+    return Boolean(document.querySelector(".admin-wrapper"));
+  }
+
   initCinemaData(hallType) {
+    this.currentHallType = hallType;
     const data = cinemaData[hallType] || cinemaData.small;
     this.cinema = new Cinema(data.rows, data.cols, "top", data.curvature);
     const dayOfWeek = this.currentDateInfo
@@ -118,6 +248,7 @@ class MainController {
       window.addEventListener("resize", this.resizeHandler);
       this.renderer = new CanvasRenderer(canvasEl, this.cinema);
       this.renderer.setHallType(lastHallType);
+      this.resizeCanvas(canvasEl);
       this.heatmapRenderer = new HeatmapRenderer(this.renderer);
       this.renderer.heatmapRenderer = this.heatmapRenderer;
       this.heatmapRenderer.update();
@@ -143,10 +274,34 @@ class MainController {
 
   resizeCanvas(canvasEl) {
     const container = document.querySelector(".cinema-container");
-    if (container) {
-      canvasEl.width = container.clientWidth;
-      canvasEl.height = Math.min(container.clientWidth * 0.6, 600);
-    }
+    if (!container) return;
+
+    const containerStyle = getComputedStyle(container);
+    const paddingTop = parseFloat(containerStyle.paddingTop) || 0;
+    const paddingBottom = parseFloat(containerStyle.paddingBottom) || 0;
+    const legend = container.querySelector(".seat-legend");
+    const legendHeight = legend ? legend.offsetHeight : 0;
+    const availableHeight =
+      container.clientHeight - paddingTop - paddingBottom - legendHeight - 16;
+
+    canvasEl.width = container.clientWidth;
+    canvasEl.height = Math.min(
+      container.clientWidth * 0.6,
+      600,
+      Math.max(280, availableHeight),
+    );
+
+    if (!this.renderer) return;
+
+    const hallParams = AppConfig.getHallParams(this.currentHallType);
+    const basePixelsPerCm = 0.35;
+    const seatHalfHeight = (AppConfig.physical.seatWidth * basePixelsPerCm) / 2;
+    const lastRow = hallParams.rows - 1;
+    const lastRowY =
+      AppConfig.getRowPhysicalY(lastRow, hallParams) * basePixelsPerCm;
+    const contentHeight = 55 + lastRowY + seatHalfHeight + 20;
+    const scale = Math.min(1, canvasEl.height / contentHeight);
+    this.renderer.setPixelsPerCm(basePixelsPerCm * scale);
   }
 
   registerEvents() {
@@ -301,6 +456,14 @@ class MainController {
         this.selectedSeats,
       );
 
+      this.broadcastSyncEvent("seat:sold", {
+        hallType,
+        dayOfWeek: this.currentDateInfo.dayOfWeek,
+        seats: this.selectedSeats.map((s) => ({ row: s.row, col: s.col })),
+        orderId: order.id,
+        username: order.username,
+      });
+
       // === 更新热力图数据 ===
       const heatMapData = this.cinema
         .getAllSeats()
@@ -360,6 +523,7 @@ class MainController {
 
     this.eventBus.on("hall:switch", (hallType) => {
       console.log("[Main] Switching hall to:", hallType);
+      this.currentHallType = hallType;
       const data = cinemaData[hallType];
       if (this.cinema && data) {
         let soldSeats = data.soldSeats[this.currentDateInfo.dayOfWeek] || [];
@@ -496,6 +660,17 @@ class MainController {
         // 判空保护，管理员后台由于没有渲染Canvas，this.renderer可能不存在
         if (this.renderer) this.renderer.render();
         this.eventBus.emit("admin:view-orders");
+        this.broadcastSyncEvent("order:refunded", {
+          hallType: this.storage.getHallType("small"),
+          dayOfWeek:
+            updatedOrder.dayOfWeek != null ? updatedOrder.dayOfWeek : 0,
+          seats: updatedOrder.seatList.map((seatData) => ({
+            row: seatData.row,
+            col: seatData.col,
+          })),
+          orderId: updatedOrder.id,
+          username: updatedOrder.username,
+        });
         this.dialogManager.showSuccess("退票成功");
       } else {
         this.dialogManager.showError("退票失败：订单不存在或状态异常");
@@ -528,6 +703,17 @@ class MainController {
         if (this.renderer) this.renderer.render();
         // 刷新右栏订单列表,已退票订单会显示为「已退票」状态,按钮消失
         this.uiPanel.setOrderList(this.storage.getOrders());
+        this.broadcastSyncEvent("order:refunded", {
+          hallType: this.storage.getHallType("small"),
+          dayOfWeek:
+            updatedOrder.dayOfWeek != null ? updatedOrder.dayOfWeek : 0,
+          seats: updatedOrder.seatList.map((seatData) => ({
+            row: seatData.row,
+            col: seatData.col,
+          })),
+          orderId: updatedOrder.id,
+          username: updatedOrder.username,
+        });
         this.dialogManager.showSuccess("退票成功");
       } else {
         this.dialogManager.showError("退票失败：订单不存在或状态异常");

@@ -7,6 +7,7 @@ const KEY_CURRENT_USER = "sc_current_user";
 const KEY_RATINGS = "sc_ratings";
 const KEY_HALL_TYPE = "sc_last_hall_type";
 const KEY_SEAT_STATES = "sc_seat_states"; // 用于持久化座位状态
+const SESSION_CURRENT_USER = "sc_current_user";
 
 export class StorageManager {
   constructor() {
@@ -54,20 +55,20 @@ export class StorageManager {
       (u) => u.username === username && u.password === password,
     );
     if (user) {
-      localStorage.setItem(KEY_CURRENT_USER, JSON.stringify(user));
+      sessionStorage.setItem(SESSION_CURRENT_USER, JSON.stringify(user));
       return new User(user.username, user.password, user.role);
     }
     return null;
   }
 
   getCurrentUser() {
-    const userJson = localStorage.getItem(KEY_CURRENT_USER);
+    const userJson = sessionStorage.getItem(SESSION_CURRENT_USER);
     return userJson ? JSON.parse(userJson) : null;
   }
 
   logout() {
     console.log("[Storage] Logging out");
-    localStorage.removeItem(KEY_CURRENT_USER);
+    sessionStorage.removeItem(SESSION_CURRENT_USER);
   }
 
   getAllUsers() {
