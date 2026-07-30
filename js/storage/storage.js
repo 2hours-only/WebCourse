@@ -248,9 +248,32 @@ export class StorageManager {
     }
     const clamped = Math.max(0, Math.min(100, Math.round(value)));
 
-    const ratings = this.getUserRatings();
-    ratings[seatId] = clamped;
-    localStorage.setItem(KEY_RATINGS, JSON.stringify(ratings));
+    // 存成聚合结构 { sum, count }，以便计算平均分和保留历史信息
+    let raw = {};
+    try {
+      raw = JSON.parse(localStorage.getItem(KEY_RATINGS) || "{}");
+    } catch (e) {
+      raw = {};
+    }
+
+    const existing = raw[seatId];
+    if (
+      existing &&
+      typeof existing === "object" &&
+      Number.isFinite(Number(existing.sum)) &&
+      Number.isFinite(Number(existing.count))
+    ) {
+      existing.sum = Number(existing.sum) + clamped;
+      existing.count = Number(existing.count) + 1;
+      raw[seatId] = existing;
+    } else if (Number.isFinite(Number(existing))) {
+      // 兼容旧版数据: 如果之前是单个数字,把它当作一条历史评分
+      raw[seatId] = { sum: Number(existing) + clamped, count: 2 };
+    } else {
+      raw[seatId] = { sum: clamped, count: 1 };
+    }
+
+    localStorage.setItem(KEY_RATINGS, JSON.stringify(raw));
   }
 
   /**
@@ -265,16 +288,57 @@ export class StorageManager {
       return {};
     }
     if (!raw || typeof raw !== "object") return {};
-
-    // 历史数据里可能混有非法值,读的时候再筛一遍
+    // 将聚合结构转换成平均分（兼容旧版单值）
     const clean = {};
     for (const [seatId, value] of Object.entries(raw)) {
-      const num = Number(value);
-      if (Number.isFinite(num)) {
-        clean[seatId] = Math.max(0, Math.min(100, Math.round(num)));
+      if (
+        value &&
+        typeof value === "object" &&
+        Number.isFinite(Number(value.sum)) &&
+        Number.isFinite(Number(value.count)) &&
+        value.count > 0
+      ) {
+        const avg = Math.round(Number(value.sum) / Number(value.count));
+        clean[seatId] = Math.max(0, Math.min(100, avg));
+      } else {
+        const num = Number(value);
+        if (Number.isFinite(num)) {
+          clean[seatId] = Math.max(0, Math.min(100, Math.round(num)));
+        }
       }
     }
     return clean;
+  }
+
+  /**
+   * 获取指定座位的评分统计信息
+   * @param {string} seatId
+   * @returns {{avg:number,count:number}}
+   */
+  getRatingStats(seatId) {
+    if (!seatId) return { avg: 0, count: 0 };
+    let raw;
+    try {
+      raw = JSON.parse(localStorage.getItem(KEY_RATINGS) || "{}");
+    } catch (e) {
+      return { avg: 0, count: 0 };
+    }
+    const v = raw[seatId];
+    if (!v) return { avg: 0, count: 0 };
+    if (
+      typeof v === "object" &&
+      Number.isFinite(Number(v.sum)) &&
+      Number.isFinite(Number(v.count)) &&
+      v.count > 0
+    ) {
+      return {
+        avg: Math.round(Number(v.sum) / Number(v.count)),
+        count: Number(v.count),
+      };
+    }
+    const num = Number(v);
+    if (Number.isFinite(num)) return { avg: Math.round(num), count: 1 };
+    return { avg: 0, count: 0 };
   }
 
   saveHallType(hallType) {

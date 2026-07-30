@@ -32,6 +32,7 @@ class MainController {
     this.uiPanel = new UIPanel(
       document.querySelector(".main-container"),
       this.eventBus,
+      this.storage,
     );
 
     const currentUser = this.storage.getCurrentUser();

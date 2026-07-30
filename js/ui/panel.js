@@ -47,9 +47,10 @@ const ORDER_STATUS_TEXT = {
 };
 
 export class UIPanel {
-  constructor(container, eventBus) {
+  constructor(container, eventBus, storage) {
     this.container = container;
     this.eventBus = eventBus;
+    this.storage = storage;
     this.loginLayer = document.getElementById("login-layer");
     this.mainContainer = container;
     this.recommendBtn = this.mainContainer
@@ -985,11 +986,21 @@ export class UIPanel {
     this.hideRatingPanel();
     this.ratingSeat = seat;
 
+    const stats = this.storage
+      ? this.storage.getRatingStats(seatId(seat))
+      : { avg: 0, count: 0 };
+    const initial = stats.count > 0 ? stats.avg : 80;
+
     const wrap = document.createElement("div");
     wrap.id = "seat-rating-panel";
     wrap.innerHTML = `
       <div class="rating-panel__title">为 ${seatLabel(seat)} 打分</div>
-      ${ratingControlsHtml(80)}
+      <div class="rating-hint">${
+        stats.count > 0
+          ? `当前平均分 <strong>${stats.avg}</strong> （${stats.count} 人评分）`
+          : `尚无人评分`
+      }</div>
+      ${ratingControlsHtml(initial)}
       <div class="rating-actions">
         <button type="button" class="btn btn-secondary" data-act="cancel">取消</button>
         <button type="button" class="btn btn-primary" data-act="submit">提交</button>
