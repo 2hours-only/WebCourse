@@ -380,12 +380,34 @@ class MainController {
         this.uiPanel.setRecommendation([]);
         return;
       }
+
+      const type = userPref && userPref.type;
+      const count = (userPref && userPref.count) || 1;
+
+      // 家庭票人数不足 3：提示，但仍按至少 3 人推荐
+      if (type === "family" && count < 3) {
+        this.dialogManager.showError("家庭票人数需大于等于3");
+      }
+
+      // 团体票人数超过当前厅每排座位数：无法同排连续
+      if (type === "group" && count > this.cinema.cols) {
+        this.dialogManager.showError("人数过多，无法找到同排连续座位");
+        this.uiPanel.setRecommendation([]);
+        return;
+      }
+
       const userRatings = this.storage.getUserRatings();
       const seats = this.recommendEngine.recommend(
         userPref,
         this.cinema,
         userRatings,
       );
+
+      // 团体票人数未超限但仍找不到连续座位（如已售打断）
+      if (type === "group" && seats.length === 0) {
+        this.dialogManager.showError("人数过多，无法找到同排连续座位");
+      }
+
       if (this.renderer) {
         this.renderer.render();
       }
