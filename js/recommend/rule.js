@@ -9,13 +9,17 @@ export class RuleEngine {
    *   type: 'personal' | 'couple' | 'family' | 'group'
    *   memberInfo: [{name, age}, ...] (团体/家庭票时使用)
    * @param {Seat[]} seats 当前可用座位
+   * @param {{ applyAge?: boolean }} [options] applyAge 默认 true；为 false 时跳过年龄行限制
    * @returns {Seat[]} 过滤后的候选座位列表
    */
-  applyRules(userPreference, seats) {
-    console.log("[Recommend] applyRules called", userPreference);
+  applyRules(userPreference, seats, options = {}) {
+    console.log("[Recommend] applyRules called", userPreference, options);
+    const { applyAge = true } = options;
     let filtered = [...seats];
 
-    filtered = this._applyAgeRules(userPreference, filtered);
+    if (applyAge) {
+      filtered = this._applyAgeRules(userPreference, filtered);
+    }
     filtered = this._applyTypeRules(userPreference, filtered);
 
     console.log(
@@ -28,7 +32,7 @@ export class RuleEngine {
    * 年龄规则
    * - 青少年(15岁以下)避开前三排
    * - 老年人(60岁以上)避开最后三排
-   * - 团体/家庭票：检查 memberInfo 中成员年龄，遵循老人/少年子规则
+   * - 个人/家庭/团体票：检查 memberInfo 中成员年龄，遵循老人/少年子规则
    */
   _applyAgeRules(pref, seats) {
     const age = pref && pref.age;
