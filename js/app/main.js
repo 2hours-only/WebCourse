@@ -348,16 +348,18 @@ class MainController {
     // 修复越权登录逻辑
     this.eventBus.on("user:register", (registerData) => {
       console.log("[Main] Received user:register", registerData);
-      const existingUser = this.storage.findUser(registerData.username);
+      const username = (registerData.username || "").trim();
+      const password = (registerData.password || "").trim();
+      if (!username || !password) {
+        this.dialogManager.showError("用户名或密码为空");
+        return;
+      }
+      const existingUser = this.storage.findUser(username);
       if (existingUser) {
         this.dialogManager.showError("注册失败：用户名已存在");
         return;
       }
-      const newUser = new User(
-        registerData.username,
-        registerData.password,
-        "user",
-      );
+      const newUser = new User(username, password, "user");
       this.storage.register(newUser);
       this.dialogManager.showSuccess("注册成功，请登录");
     });
