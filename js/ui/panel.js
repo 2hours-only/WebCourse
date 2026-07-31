@@ -541,10 +541,17 @@ export class UIPanel {
       typeSelect.addEventListener("change", () => {
         const memberArea = document.getElementById("member-info-area");
         if (memberArea) {
-          memberArea.classList.toggle("hidden", typeSelect.value !== "group");
+          // 个人票 / 家庭票 / 团体票均可填写成员姓名与年龄作为推荐参考
+          const showMember =
+            typeSelect.value === "group" ||
+            typeSelect.value === "personal" ||
+            typeSelect.value === "family";
+          memberArea.classList.toggle("hidden", !showMember);
         }
         syncPeopleCount();
       });
+      // 初始化时同步一次成员信息区显隐
+      typeSelect.dispatchEvent(new Event("change"));
     }
     const logoutBtn = document.getElementById("logout-btn");
     if (logoutBtn) {
@@ -681,7 +688,12 @@ export class UIPanel {
     let memberInfo = [];
     const type = typeSelect ? typeSelect.value : "personal";
 
-    if (type === "group" && memberInfoInput && memberInfoInput.value) {
+    // 个人/家庭/团体票均可解析成员信息（姓名:年龄）
+    if (
+      (type === "group" || type === "personal" || type === "family") &&
+      memberInfoInput &&
+      memberInfoInput.value
+    ) {
       memberInfo = memberInfoInput.value
         .split(",")
         .map((item) => {
