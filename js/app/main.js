@@ -273,36 +273,49 @@ class MainController {
     if (this.renderer) this.renderer.render();
   }
 
+  /**
+   * 按影厅内容真实尺寸设置 canvas（固定座位大小，不缩放）。
+   * 画布可大于容器，由 .cinema-container 的 overflow:auto 提供滚动条。
+   */
   resizeCanvas(canvasEl) {
     const container = document.querySelector(".cinema-container");
     if (!container) return;
 
-    const containerStyle = getComputedStyle(container);
-    const paddingTop = parseFloat(containerStyle.paddingTop) || 0;
-    const paddingBottom = parseFloat(containerStyle.paddingBottom) || 0;
-    const legend = container.querySelector(".seat-legend");
-    const legendHeight = legend ? legend.offsetHeight : 0;
-    const availableHeight =
-      container.clientHeight - paddingTop - paddingBottom - legendHeight - 16;
-
-    canvasEl.width = container.clientWidth;
-    canvasEl.height = Math.min(
-      container.clientWidth * 0.6,
-      600,
-      Math.max(280, availableHeight),
-    );
-
-    if (!this.renderer) return;
-
-    const hallParams = AppConfig.getHallParams(this.currentHallType);
     const basePixelsPerCm = 0.35;
-    const seatHalfHeight = (AppConfig.physical.seatWidth * basePixelsPerCm) / 2;
+    if (this.renderer) {
+      this.renderer.setPixelsPerCm(basePixelsPerCm);
+    }
+
+    const hallType = this.currentHallType || "small";
+    const hallParams = AppConfig.getHallParams(hallType);
+    const seatSize = AppConfig.physical.seatWidth * basePixelsPerCm;
+    const seatHalf = seatSize / 2;
+    const yOffset = this.renderer ? this.renderer.yOffset : 55;
+    // 排号文字 + 外边距（与 renderer._renderRowLabels 留白对齐）
+    const sideLabelPad = seatSize + 36;
+    const bottomPad = 28;
+
+    const angleSpanRad = (hallParams.angleSpan * Math.PI) / 180;
+    const maxAbsX =
+      hallParams.radius * Math.sin(angleSpanRad / 2) * basePixelsPerCm;
+    const seatsWidth = 2 * (maxAbsX + seatHalf + sideLabelPad);
+    const screenWidthPixels =
+      AppConfig.getScreenWidth(hallType) * basePixelsPerCm * 0.8;
+    const contentWidth = Math.ceil(Math.max(seatsWidth, screenWidthPixels) + 24);
+
     const lastRow = hallParams.rows - 1;
     const lastRowY =
       AppConfig.getRowPhysicalY(lastRow, hallParams) * basePixelsPerCm;
-    const contentHeight = 55 + lastRowY + seatHalfHeight + 20;
-    const scale = Math.min(1, canvasEl.height / contentHeight);
-    this.renderer.setPixelsPerCm(basePixelsPerCm * scale);
+    // 列号在首排上方，银幕在顶部；末排下方再留出座位半高与过道标注
+    const contentHeight = Math.ceil(
+      yOffset + lastRowY + seatHalf + bottomPad + 16,
+    );
+
+    canvasEl.width = contentWidth;
+    canvasEl.height = contentHeight;
+    // 显示尺寸与位图 1:1，避免被 CSS 压窄导致交互坐标错位
+    canvasEl.style.width = `${contentWidth}px`;
+    canvasEl.style.height = `${contentHeight}px`;
   }
 
   registerEvents() {
@@ -563,6 +576,8 @@ class MainController {
         }
         if (this.renderer) {
           this.renderer.setHallType(hallType);
+          const canvasEl = document.getElementById("cinema-canvas");
+          if (canvasEl) this.resizeCanvas(canvasEl);
         }
         if (this.heatmapRenderer) {
           this.heatmapRenderer.update(this.cinema.getAllSeats());

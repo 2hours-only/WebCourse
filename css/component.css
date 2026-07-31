@@ -144,8 +144,9 @@
   box-shadow: var(--shadow-1);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  /* 内容可大于视口：左上对齐，靠 overflow 出现滚动条查看全部座位 */
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: var(--s4);
   overflow: auto;
   position: relative;
@@ -171,8 +172,12 @@
 }
 
 #cinema-canvas {
-  max-width: 100%;
+  /* 不限制 max-width：画布按座位原尺寸绘制，超出容器时由滚动条查看 */
+  flex-shrink: 0;
   border-radius: var(--r-md);
+  display: block;
+  /* 画布比容器窄时水平居中；超出时仍可从左侧滚动 */
+  margin-inline: auto;
 }
 
 /* ============================================================
@@ -529,6 +534,11 @@ textarea {
   font-size: var(--fs-xs);
   color: var(--text-dim);
   flex: 0 0 auto;
+  /* 滚动查看座位时图例保持可见 */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  align-self: stretch;
 }
 
 .legend-item {

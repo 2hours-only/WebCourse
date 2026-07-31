@@ -223,24 +223,9 @@
 }
 
 /*
-  根治办法(需要组长在 js/app/main.js 改 4 行):
-
-    resizeCanvas(canvasEl) {
-      const container = document.querySelector(".cinema-container");
-      if (!container) return;
-      const w = container.clientWidth;
-      canvasEl.width = w;
-      canvasEl.height = Math.min(w * 0.6, 600);
-      // 画布装不下时,让渲染器按比例缩小内容,而不是把座位画到画布外面
-      if (this.renderer) {
-        const needed = 520;                  // 10 排座位在 0.35 px/cm 下所需高度
-        const scale = Math.min(1, canvasEl.height / needed);
-        this.renderer.setPixelsPerCm(0.35 * scale);
-      }
-    }
-
-  renderer.js 里 setPixelsPerCm(value) 这个方法本来就有(renderer.js:26),
-  只是 main.js 从来没调用过。
+  座位裁切根治（已落地）:
+  main.js resizeCanvas 按影厅内容包围盒设置 canvas 宽高，固定 pixelsPerCm=0.35，
+  不再把画布锁死在容器内缩放；.cinema-container { overflow:auto } 提供滚动条。
 */
 
 /* 超宽屏再放大一档,避免 4K 下字小得看不清 */
