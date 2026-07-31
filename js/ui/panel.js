@@ -689,15 +689,16 @@ export class UIPanel {
     const type = typeSelect ? typeSelect.value : "personal";
 
     // 个人/家庭/团体票均可解析成员信息（姓名:年龄）
+    // 兼容中英文逗号、冒号（用户常输入 张三：61，李四：12）
     if (
       (type === "group" || type === "personal" || type === "family") &&
       memberInfoInput &&
       memberInfoInput.value
     ) {
       memberInfo = memberInfoInput.value
-        .split(",")
+        .split(/[,，]/)
         .map((item) => {
-          const parts = item.trim().split(":");
+          const parts = item.trim().split(/[:：]/);
           return {
             name: parts[0] ? parts[0].trim() : "未知",
             age: parts[1] ? parseInt(parts[1].trim(), 10) || 20 : 20,

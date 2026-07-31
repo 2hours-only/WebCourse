@@ -36,29 +36,45 @@ export class RecommendEngine {
       s.aiAdvice = "";
     });
 
-    let seats = cinema.getAvailableSeats();
-    seats = this.ruleEngine.applyRules(userPreference, seats);
-
-    // 评分
-    seats.forEach((s) => {
-      const seatId = `r${s.row}c${s.col}`;
-      const userRating = userRatings[seatId];
-      const score = this.scoreCalculator.calculate(s, userRating, { cinema });
-      s.setScore(score);
-    });
-
-    // 根据类型挑选最终推荐座位
+    const available = cinema.getAvailableSeats();
     const count = (userPreference && userPreference.count) || 1;
     const type = (userPreference && userPreference.type) || "personal";
-    let recommended;
+    const memberInfo =
+      (userPreference && userPreference.memberInfo) || [];
+    const need =
+      type === "family"
+        ? Math.max(count, 3)
+        : type === "couple"
+          ? 2
+          : Math.max(count, 1);
 
-    if (type === "couple") {
-      recommended = this._pickBestPair(seats);
-    } else if (type === "group" || type === "family") {
-      const need = type === "family" ? Math.max(count, 3) : count;
-      recommended = this._pickBestContiguous(seats, need);
-    } else {
-      recommended = this._pickTopSeats(seats, Math.max(count, 1));
+    // 优先：带年龄约束（含 memberInfo 中的少年/老人）筛选
+    let recommended = this._scoreAndPick(
+      userPreference,
+      available,
+      userRatings,
+      cinema,
+      { applyAge: true },
+    );
+
+    // 团体/家庭：若已给出部分成员年龄，但带年龄约束找不到足够连续座位，
+    // 则回退为仅按人数（票种）要求推荐
+    const shouldAgeFallback =
+      (type === "group" || type === "family" || type === "personal") &&
+      memberInfo.length > 0 &&
+      recommended.length < need;
+
+    if (shouldAgeFallback) {
+      console.log(
+        "[Recommend] age-constrained pick insufficient, fallback without age rules",
+      );
+      recommended = this._scoreAndPick(
+        userPreference,
+        available,
+        userRatings,
+        cinema,
+        { applyAge: false },
+      );
     }
 
     // 生成评价等级与推荐理由（动态挂载到 Seat）
@@ -74,6 +90,36 @@ export class RecommendEngine {
       `[Recommend] recommended ${recommended.length} seats, grade=${grade}, reason=${reason}`,
     );
     return recommended;
+  }
+
+  /**
+   * 过滤 → 评分 → 按票种挑选
+   */
+  _scoreAndPick(userPreference, available, userRatings, cinema, ruleOptions) {
+    let seats = this.ruleEngine.applyRules(
+      userPreference,
+      available,
+      ruleOptions,
+    );
+
+    seats.forEach((s) => {
+      const seatId = `r${s.row}c${s.col}`;
+      const userRating = userRatings[seatId];
+      const score = this.scoreCalculator.calculate(s, userRating, { cinema });
+      s.setScore(score);
+    });
+
+    const count = (userPreference && userPreference.count) || 1;
+    const type = (userPreference && userPreference.type) || "personal";
+
+    if (type === "couple") {
+      return this._pickBestPair(seats);
+    }
+    if (type === "group" || type === "family") {
+      const need = type === "family" ? Math.max(count, 3) : count;
+      return this._pickBestContiguous(seats, need);
+    }
+    return this._pickTopSeats(seats, Math.max(count, 1));
   }
 
   /**
