@@ -55,7 +55,7 @@ export const AppConfig = {
     free: "#4CAF50",
     selected: "#FFC107",
     sold: "#F44336",
-    recommended: "#2196F3",
+    recommended: "#2196F2",
     hover: "#81C784",
   },
 
@@ -78,7 +78,15 @@ export const AppConfig = {
     basePrice: 50,
   },
 
-  // ==================== 辅助方法 ====================
+  // ==================== 响应式缩放配置（像素/厘米）====================
+  // 根据窗口宽度动态调整缩放比例，减少滑动条
+  responsiveScale: {
+    mobile: 0.2, // <= 640px
+    tablet: 0.28, // 641px - 1024px
+    desktop: 0.35, // 1025px - 1440px
+    wide: 0.4, // > 1440px
+  },
+
   // ==================== 背景图片列表 ====================
   // 登录界面背景图片列表
   loginBackgroundImages: ["assets/1.jpg", "assets/2.jpg", "assets/3.jpg"],
@@ -86,7 +94,10 @@ export const AppConfig = {
   mainBackgroundImages: ["assets/1.jpg", "assets/2.jpg", "assets/3.jpg"],
 
   // ==================== 辅助方法 ====================
-  /** * 获取指定影厅的弧形参数 */
+
+  /**
+   * 获取指定影厅的弧形参数
+   */
   getHallParams(hallType) {
     return this.arcParams[hallType] || this.arcParams.small;
   },
@@ -101,9 +112,7 @@ export const AppConfig = {
   getRowPhysicalY(rowIndex, hallParams) {
     const { rowSpacing, aisleRowSpacing, aisleRowIndex } = this.physical;
     const screenToFirstRow = hallParams.screenToFirstRow || 200;
-
     let y = screenToFirstRow;
-
     for (let r = 0; r < rowIndex; r++) {
       // 如果当前排后面有过道，则下一排距离更大
       if (r === aisleRowIndex - 1) {
@@ -112,7 +121,6 @@ export const AppConfig = {
         y += rowSpacing;
       }
     }
-
     return y;
   },
 
@@ -130,5 +138,17 @@ export const AppConfig = {
     return (
       this.physical.screenWidth[hallType] || this.physical.screenWidth.small
     );
+  },
+
+  /**
+   * 根据窗口宽度获取响应式缩放比例
+   * @param {number} width - 窗口宽度
+   * @returns {number} 缩放比例（像素/厘米）
+   */
+  getResponsiveScale(width) {
+    if (width <= 640) return this.responsiveScale.mobile;
+    if (width <= 1024) return this.responsiveScale.tablet;
+    if (width <= 1440) return this.responsiveScale.desktop;
+    return this.responsiveScale.wide;
   },
 };

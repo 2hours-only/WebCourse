@@ -281,17 +281,20 @@ class MainController {
     const container = document.querySelector(".cinema-container");
     if (!container) return;
 
-    const basePixelsPerCm = 0.35;
+    // 【修改】根据窗口宽度动态获取缩放比例，减少滑动条出现频率
+    const width = window.innerWidth;
+    const basePixelsPerCm = AppConfig.getResponsiveScale(width);
+
     if (this.renderer) {
       this.renderer.setPixelsPerCm(basePixelsPerCm);
     }
 
     const hallType = this.currentHallType || "small";
     const hallParams = AppConfig.getHallParams(hallType);
+
     const seatSize = AppConfig.physical.seatWidth * basePixelsPerCm;
     const seatHalf = seatSize / 2;
     const yOffset = this.renderer ? this.renderer.yOffset : 55;
-    // 排号文字 + 外边距（与 renderer._renderRowLabels 留白对齐）
     const sideLabelPad = seatSize + 36;
     const bottomPad = 28;
 
@@ -299,6 +302,7 @@ class MainController {
     const maxAbsX =
       hallParams.radius * Math.sin(angleSpanRad / 2) * basePixelsPerCm;
     const seatsWidth = 2 * (maxAbsX + seatHalf + sideLabelPad);
+
     const screenWidthPixels =
       AppConfig.getScreenWidth(hallType) * basePixelsPerCm * 0.8;
     const contentWidth = Math.ceil(
@@ -315,6 +319,7 @@ class MainController {
 
     canvasEl.width = contentWidth;
     canvasEl.height = contentHeight;
+
     // 显示尺寸与位图 1:1，避免被 CSS 压窄导致交互坐标错位
     canvasEl.style.width = `${contentWidth}px`;
     canvasEl.style.height = `${contentHeight}px`;
@@ -806,7 +811,6 @@ class MainController {
     });
   }
 
-  
   async aiRecommend(apiKey, userInput, extraRequirement = "") {
     console.log(
       "[Main] AI Recommend started with input:",
