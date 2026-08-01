@@ -9,7 +9,7 @@ const ZHIPU_API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
 const ZHIPU_MODEL = "glm-4.7-flash";
 
 //旧模型, 速度快
-// const ZHIPU_MODEL = "glm-4-flash";
+//const ZHIPU_MODEL = "glm-4-flash";
 
 export class RecommendEngine {
   constructor() {
@@ -39,8 +39,7 @@ export class RecommendEngine {
     const available = cinema.getAvailableSeats();
     const count = (userPreference && userPreference.count) || 1;
     const type = (userPreference && userPreference.type) || "personal";
-    const memberInfo =
-      (userPreference && userPreference.memberInfo) || [];
+    const memberInfo = (userPreference && userPreference.memberInfo) || [];
     const need =
       type === "family"
         ? Math.max(count, 3)
@@ -238,25 +237,33 @@ export class RecommendEngine {
   // ============================================================
   // AI 观影问答式顾问推荐（真实智谱 API）
   // ============================================================
-
   /**
    * AI 观影问答式顾问推荐（加分项）
    * @param {Object|string} userInput UserPreference（与 UI getUserInput 一致）或自然语言
    * @param {Cinema} cinema
    * @param {Object} userRatings 用户手动评分映射（保留兼容）
    * @param {string} apiKey 智谱 API Key（由 Main 从 UI 传入，必填）
-   * @returns {Promise<Seat[]>} 推荐座位列表；座位上挂 recommendReason / aiAdvice
-   */
-  async aiRecommend(userInput, cinema, userRatings = {}, apiKey) {
-    console.log("[Recommend AI] aiRecommend (Zhipu) input:", userInput);
-
+   * @param {string} extraRequirement 用户额外要求（可选）
+   * @returns {Promise<Seat[]>} 推荐座位列表；座位上挂 recommendReason / aiAdvice */
+  async aiRecommend(
+    userInput,
+    cinema,
+    userRatings = {},
+    apiKey,
+    extraRequirement = "",
+  ) {
+    console.log(
+      "[Recommend AI] aiRecommend (Zhipu) input:",
+      userInput,
+      "extraRequirement:",
+      extraRequirement,
+    );
     if (!apiKey) {
       throw new Error("未提供有效的 API Key");
     }
     if (!cinema) {
       throw new Error("影院数据未初始化");
     }
-
     // 清除上一次推荐标记
     cinema.getAllSeats().forEach((s) => {
       s.setRecommended(false);
@@ -265,18 +272,16 @@ export class RecommendEngine {
       s.aiAdvice = "";
     });
 
-    const prompt = this._buildAIPrompt(userInput, cinema);
+    const prompt = this._buildAIPrompt(userInput, cinema, extraRequirement);
     console.log("[Recommend AI] Sending prompt to Zhipu:\n", prompt);
-
     const reply = await this._callZhipuAPI(prompt, apiKey);
     console.log(
       `%c[Recommend AI] Zhipu reply:\n${reply}`,
       "color:#9C27B0;font-weight:bold;",
     );
-
     const parsed = this._parseAIResponse(reply);
-    const recommended = [];
 
+    const recommended = [];
     parsed.seats.forEach(({ row, col }) => {
       const seat = cinema.getSeat(row, col);
       if (seat && seat.status !== "sold") {
@@ -305,7 +310,6 @@ export class RecommendEngine {
           })
         : [],
     );
-
     recommended.forEach((s) => {
       s.recommendReason = reason;
       s.aiAdvice = reason;
@@ -320,8 +324,11 @@ export class RecommendEngine {
 
   /**
    * 构建发给智谱的提示词（与 main.js 的提示词结构对齐）
+   * @param {Object|string} userInput 用户输入
+   * @param {Cinema} cinema 影院对象
+   * @param {string} extraRequirement 用户额外要求（可选）
    */
-  _buildAIPrompt(userInput, cinema) {
+  _buildAIPrompt(userInput, cinema, extraRequirement = "") {
     const ageMap = { adult: "成年人", teenager: "少年", elderly: "老年人" };
     const typeMap = {
       personal: "个人票",
@@ -370,8 +377,17 @@ export class RecommendEngine {
 
     const rows = cinema.rows;
     const cols = cinema.cols;
+
     const naturalHint = pref._natural
       ? `\n- **用户补充描述**: ${pref._natural}`
+      : "";
+
+    // 新增：处理用户额外要求
+    const extraRequirementSection = extraRequirement
+      ? `
+## 2.5 用户额外要求（请务必在推荐理由中体现）
+- **用户特别说明**: "${extraRequirement}"
+- **要求**: 推荐理由中必须明确说明你是如何满足用户的这一额外要求的。`
       : "";
 
     return `
@@ -379,15 +395,14 @@ export class RecommendEngine {
 
 ## 1. 影厅布局信息
 - **布局尺寸**: ${rows} 排 x ${cols} 列
-- **座位编号**: 使用“排号-列号”格式（例如 3-5 代表第3排第5列）
+- **座位编号**: 使用"排号-列号"格式（例如 3-5 代表第3排第5列）
 - **已售座位**: ${soldSeatsText || "无"}
 
 ## 2. 客户购票需求
 - **观众类型**: ${audienceType}
 - **选座类型**: ${ticketType}
 - **购票数量**: **${count} 张** (请务必输出正好 ${count} 个座位，不能多也不能少)
-- **成员信息**: ${memberInfoText}
-  *(注: 仅当选座类型为“团体票”或“家庭票”时需参考成员年龄，其他情况请忽略姓名详情)*${naturalHint}
+- **成员信息**: ${memberInfoText} *(注: 仅当选座类型为"团体票"或"家庭票"时需参考成员年龄，其他情况请忽略姓名详情)*${naturalHint}${extraRequirementSection}
 
 ## 3. 选座规则 (请严格遵守)
 
@@ -408,27 +423,17 @@ export class RecommendEngine {
 请严格按照以下 Markdown 格式输出，不要包含多余的解释：
 
 \`\`\`
-座位列表
-{
-  <推荐座位1>,
-  <推荐座位2>,
-  ...
+座位列表 {
+<推荐座位1>, <推荐座位2>, ...
 }
-
-推荐理由: <简明扼要的理由>
+推荐理由: <简明扼要的理由，如果用户提出了额外要求，必须在理由中体现如何满足>
 \`\`\`
 
 ### 正确示例
-输入: 团体票，3人
+输入: 团体票，3人，额外要求"希望靠中间一点"
 \`\`\`
-座位列表
-{
-  5-5,
-  5-6,
-  5-7
-}
-
-推荐理由: 团体同排连续空位，居中视角佳。
+座位列表 { 5-5, 5-6, 5-7 }
+推荐理由: 根据您"希望靠中间一点"的要求，为您选择了第5排中间区域的连续座位，同时满足团体同排连续的条件，视角居中佳。
 \`\`\`
 
 请根据以上信息开始推荐：
@@ -644,11 +649,22 @@ const testEngine = new RecommendEngine();
 
 const testCases = [
   { name: "个人-成人", pref: { age: "adult", count: 1, type: "personal" } },
-  { name: "个人-青少年", pref: { age: "teenager", count: 1, type: "personal" } },
+  {
+    name: "个人-青少年",
+    pref: { age: "teenager", count: 1, type: "personal" },
+  },
   { name: "个人-老人", pref: { age: "elderly", count: 1, type: "personal" } },
   { name: "情侣", pref: { age: "adult", count: 2, type: "couple" } },
   { name: "家庭3人", pref: { age: "adult", count: 3, type: "family" } },
-  { name: "家庭（含老人）", pref: { age: "adult", count: 3, type: "family", memberInfo: [{ name: "爷爷", age: 65 }] } },
+  {
+    name: "家庭（含老人）",
+    pref: {
+      age: "adult",
+      count: 3,
+      type: "family",
+      memberInfo: [{ name: "爷爷", age: 65 }],
+    },
+  },
   { name: "团体5人", pref: { age: "adult", count: 5, type: "group" } },
 ];
 
@@ -658,7 +674,9 @@ for (const tc of testCases) {
   console.log(
     `%c${tc.name}:`,
     "font-weight:bold;color:#2196F3",
-    result.map((s) => `${s.row + 1}排${s.col + 1}座(score=${s.score})`).join(", ") || "无推荐",
+    result
+      .map((s) => `${s.row + 1}排${s.col + 1}座(score=${s.score})`)
+      .join(", ") || "无推荐",
     `| 等级=${result[0]?.recommendGrade || "-"}`,
     `| 理由=${result[0]?.recommendReason || "-"}`,
   );

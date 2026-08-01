@@ -452,12 +452,25 @@ export class UIPanel {
           dialog.showError("请先在上方填入你的 AI API Key");
           return;
         }
+        // 新增：读取用户额外要求
+        const extraRequirementInput = document.getElementById(
+          "extra-requirement-input",
+        );
+        const extraRequirement = extraRequirementInput
+          ? extraRequirementInput.value.trim()
+          : "";
+        // 显示等待状态
+        aiRecommendBtn.disabled = true;
+        aiRecommendBtn.textContent = "等待回复中...";
+        aiRecommendBtn.classList.add("btn-loading");
         this.eventBus.emit("ai:recommend", {
           apiKey,
           userInput: this.getUserInput(),
+          extraRequirement,
         });
       });
     }
+
     const purchaseBtn = this.container.querySelector("#purchase-btn");
     if (purchaseBtn) {
       purchaseBtn.addEventListener("click", () => {

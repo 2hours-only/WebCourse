@@ -301,7 +301,9 @@ class MainController {
     const seatsWidth = 2 * (maxAbsX + seatHalf + sideLabelPad);
     const screenWidthPixels =
       AppConfig.getScreenWidth(hallType) * basePixelsPerCm * 0.8;
-    const contentWidth = Math.ceil(Math.max(seatsWidth, screenWidthPixels) + 24);
+    const contentWidth = Math.ceil(
+      Math.max(seatsWidth, screenWidthPixels) + 24,
+    );
 
     const lastRow = hallParams.rows - 1;
     const lastRowY =
@@ -798,21 +800,40 @@ class MainController {
     this.eventBus.on("ai:recommend", (payload) => {
       const apiKey = payload && payload.apiKey ? payload.apiKey : "";
       const userInput = payload && payload.userInput ? payload.userInput : {};
-      this.aiRecommend(apiKey, userInput);
+      const extraRequirement =
+        payload && payload.extraRequirement ? payload.extraRequirement : "";
+      this.aiRecommend(apiKey, userInput, extraRequirement);
     });
   }
 
-  async aiRecommend(apiKey, userInput) {
-    console.log("[Main] AI Recommend started with input:", userInput);
+  
+  async aiRecommend(apiKey, userInput, extraRequirement = "") {
+    console.log(
+      "[Main] AI Recommend started with input:",
+      userInput,
+      "extraRequirement:",
+      extraRequirement,
+    );
+    const aiRecommendBtn = document.getElementById("ai-recommend-btn");
+
+    const restoreButton = () => {
+      if (aiRecommendBtn) {
+        aiRecommendBtn.disabled = false;
+        aiRecommendBtn.textContent = "AI推荐";
+        aiRecommendBtn.classList.remove("btn-loading");
+      }
+    };
+
     if (!apiKey) {
+      restoreButton();
       alert("未提供有效的 API Key");
       return;
     }
     if (!this.cinema) {
+      restoreButton();
       alert("影院数据未初始化");
       return;
     }
-
     try {
       // 调用 RecommendEngine 的 aiRecommend 方法
       const userRatings = this.storage.getUserRatings();
@@ -821,6 +842,7 @@ class MainController {
         this.cinema,
         userRatings,
         apiKey,
+        extraRequirement,
       );
 
       // 更新 UI 显示
@@ -839,6 +861,9 @@ class MainController {
     } catch (error) {
       console.error("[Main] AI Recommend Failed:", error);
       alert(`AI推荐失败: ${error.message}`);
+    } finally {
+      // 无论成功还是失败，都恢复按钮状态
+      restoreButton();
     }
   }
 }
