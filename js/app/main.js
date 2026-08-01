@@ -37,6 +37,7 @@ class MainController {
 
     const currentUser = this.storage.getCurrentUser();
     if (currentUser) {
+      this.currentUser = currentUser;
       console.log(
         "[Main] User already logged in:",
         currentUser.username,
@@ -112,6 +113,8 @@ class MainController {
       this.applyRemoteSeatState(message.payload, "sold");
     } else if (message.type === "seat:available") {
       this.applyRemoteSeatState(message.payload, "available");
+    } else if (message.type === "order:created") {
+      this.applyRemoteOrderCreated(message.payload);
     } else if (message.type === "order:refunded") {
       this.applyRemoteOrderRefund(message.payload);
     }
@@ -153,8 +156,21 @@ class MainController {
       this.uiPanel.setSelectedSeats(this.selectedSeats);
     }
 
-    if (this.isAdminView()) {
+    this.refreshOrderViews();
+  }
+
+  applyRemoteOrderCreated(payload) {
+    if (!payload) return;
+    this.applyRemoteSeatState(payload, "sold");
+    this.refreshOrderViews();
+  }
+
+  refreshOrderViews() {
+    if (!this.uiPanel) return;
+
+    if (this.currentUser && this.currentUser.role === "admin") {
       this.eventBus.emit("admin:view-orders");
+      return;
     }
 
     if (this.currentUser && this.currentUser.role !== "admin") {
@@ -167,14 +183,7 @@ class MainController {
     const { hallType, dayOfWeek } = payload;
     if (!hallType || dayOfWeek == null) return;
     this.applyRemoteSeatState(payload, "available");
-
-    if (this.isAdminView()) {
-      this.eventBus.emit("admin:view-orders");
-    }
-
-    if (this.currentUser && this.currentUser.role !== "admin") {
-      this.uiPanel.setOrderList(this.storage.getOrders());
-    }
+    this.refreshOrderViews();
   }
 
   isAdminView() {
@@ -482,19 +491,21 @@ class MainController {
         this.dialogManager.showError("请先选择座位");
         return;
       }
+      // 先把座位状态切换为已售，确保订单与界面状态保持一致
+      this.selectedSeats.forEach((s) => s.setStatus("sold"));
+
       const order = new Order(this.selectedSeats, this.currentDateInfo);
       order.calculateAmount();
       order.confirm();
       // 确保订单包含用户名信息
       order.username = this.currentUser ? this.currentUser.username : "未知";
-      this.storage.saveOrder(order);
+      const hallType =
+        this.currentHallType || this.storage.getHallType("small");
+      this.storage.saveOrder(order, hallType);
       this.uiPanel.setOrderInfo(order);
       // 刷新右栏订单列表,新订单出现在最上方
       this.uiPanel.setOrderList(this.storage.getOrders());
       // 更新座位状态并持久化
-      this.selectedSeats.forEach((s) => s.setStatus("sold"));
-
-      const hallType = this.storage.getHallType("small");
       this.storage.saveSeatStates(
         hallType,
         this.currentDateInfo.dayOfWeek,
@@ -502,6 +513,13 @@ class MainController {
       );
 
       this.broadcastSyncEvent("seat:sold", {
+        hallType,
+        dayOfWeek: this.currentDateInfo.dayOfWeek,
+        seats: this.selectedSeats.map((s) => ({ row: s.row, col: s.col })),
+        orderId: order.id,
+        username: order.username,
+      });
+      this.broadcastSyncEvent("order:created", {
         hallType,
         dayOfWeek: this.currentDateInfo.dayOfWeek,
         seats: this.selectedSeats.map((s) => ({ row: s.row, col: s.col })),
@@ -537,7 +555,7 @@ class MainController {
         }
       });
 
-      const heatIncrease = 0.05;
+      const heatIncrease = 0.2;
       const totalIncrease = heatIncrease * affectedSeats.size;
       const totalDecrease =
         totalIncrease / (heatMapData.length - affectedSeats.size || 1);
@@ -625,7 +643,10 @@ class MainController {
 
     this.eventBus.on("date:switch", (selectedIndex) => {
       console.log("[Main] Switching date to index:", selectedIndex);
-      const hallType = this.storage.getHallType("small");
+      const hallType =
+        this.currentHallType ||
+        this.currentHallType ||
+        this.storage.getHallType("small");
       const data = cinemaData[hallType];
 
       if (this.uiPanel.dateOptions && this.uiPanel.dateOptions[selectedIndex]) {
@@ -695,7 +716,8 @@ class MainController {
             const seat = this.cinema.getSeat(seatData.row, seatData.col);
             if (seat && seat.status === "sold") {
               seat.setStatus("available");
-              const hallType = this.storage.getHallType("small");
+              const hallType =
+                this.currentHallType || this.storage.getHallType("small");
               this.storage.saveSeatState(
                 hallType,
                 updatedOrder.dayOfWeek != null ? updatedOrder.dayOfWeek : 0,
@@ -737,7 +759,8 @@ class MainController {
             const seat = this.cinema.getSeat(seatData.row, seatData.col);
             if (seat && seat.status === "sold") {
               seat.setStatus("available");
-              const hallType = this.storage.getHallType("small");
+              const hallType =
+                this.currentHallType || this.storage.getHallType("small");
               this.storage.saveSeatState(
                 hallType,
                 updatedOrder.dayOfWeek != null ? updatedOrder.dayOfWeek : 0,
@@ -807,11 +830,17 @@ class MainController {
       const userInput = payload && payload.userInput ? payload.userInput : {};
       const extraRequirement =
         payload && payload.extraRequirement ? payload.extraRequirement : "";
-      this.aiRecommend(apiKey, userInput, extraRequirement);
+      const model = payload && payload.model ? payload.model : "glm-4.7-flash";
+      this.aiRecommend(apiKey, userInput, extraRequirement, model);
     });
   }
 
-  async aiRecommend(apiKey, userInput, extraRequirement = "") {
+  async aiRecommend(
+    apiKey,
+    userInput,
+    extraRequirement = "",
+    model = "glm-4.7-flash",
+  ) {
     console.log(
       "[Main] AI Recommend started with input:",
       userInput,
@@ -847,6 +876,7 @@ class MainController {
         userRatings,
         apiKey,
         extraRequirement,
+        model,
       );
 
       // 更新 UI 显示

@@ -6,15 +6,16 @@ import { MathUtils } from "../utils/math.js";
 const ZHIPU_API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
 
 //更新的模型, 更聪明, 但是等待时间更长, 报错429概率也更高
-const ZHIPU_MODEL = "glm-4.7-flash";
+const DEFAULT_ZHIPU_MODEL = "glm-4.7-flash";
 
 //旧模型, 速度快
-//const ZHIPU_MODEL = "glm-4-flash";
+const LEGACY_ZHIPU_MODEL = "glm-4-flash";
 
 export class RecommendEngine {
-  constructor() {
+  constructor(defaultModel = DEFAULT_ZHIPU_MODEL) {
     this.ruleEngine = new RuleEngine();
     this.scoreCalculator = new ScoreCalculator();
+    this.defaultModel = defaultModel || DEFAULT_ZHIPU_MODEL;
     console.log("[Recommend] Engine created");
   }
 
@@ -251,6 +252,7 @@ export class RecommendEngine {
     userRatings = {},
     apiKey,
     extraRequirement = "",
+    model = this.defaultModel,
   ) {
     console.log(
       "[Recommend AI] aiRecommend (Zhipu) input:",
@@ -274,7 +276,7 @@ export class RecommendEngine {
 
     const prompt = this._buildAIPrompt(userInput, cinema, extraRequirement);
     console.log("[Recommend AI] Sending prompt to Zhipu:\n", prompt);
-    const reply = await this._callZhipuAPI(prompt, apiKey);
+    const reply = await this._callZhipuAPI(prompt, apiKey, model);
     console.log(
       `%c[Recommend AI] Zhipu reply:\n${reply}`,
       "color:#9C27B0;font-weight:bold;",
@@ -443,7 +445,8 @@ export class RecommendEngine {
   /**
    * 调用智谱 Chat Completions API（端点/模型与 main.js 一致）
    */
-  async _callZhipuAPI(prompt, apiKey) {
+  async _callZhipuAPI(prompt, apiKey, model = this.defaultModel) {
+    const resolvedModel = model || this.defaultModel || LEGACY_ZHIPU_MODEL;
     const response = await fetch(ZHIPU_API_URL, {
       method: "POST",
       headers: {
@@ -451,7 +454,7 @@ export class RecommendEngine {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: ZHIPU_MODEL,
+        model: resolvedModel,
         messages: [{ role: "user", content: prompt }],
         stream: false,
       }),

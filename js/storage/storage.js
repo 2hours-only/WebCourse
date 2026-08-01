@@ -79,29 +79,45 @@ export class StorageManager {
     return JSON.parse(localStorage.getItem(KEY_USERS) || "[]");
   }
 
-  saveOrder(order) {
+  saveOrder(order, hallType = this.getHallType("small")) {
     const currentUser = this.getCurrentUser();
     if (!currentUser) return; // 未登录不保存
 
     // 获取所有订单，不能只获取当前用户的，否则会覆盖其他用户的订单
     const allOrders = JSON.parse(localStorage.getItem(KEY_ORDERS) || "[]");
+    const normalizedHallType = hallType || this.getHallType("small");
+    const seatList = (order.seatList || []).map((s) => ({
+      row: s.row,
+      col: s.col,
+      status: s.status || "available",
+    }));
     const orderData = {
       id: order.id,
       username: currentUser.username,
-      seatList: order.seatList.map((s) => ({
-        row: s.row,
-        col: s.col,
-        status: s.status,
-      })),
+      seatList,
       amount: order.amount,
       status: order.status,
       timestamp: order.timestamp,
       date: order.date,
       dayOfWeek: order.dayOfWeek,
+      hallType: normalizedHallType,
     };
 
     allOrders.push(orderData);
     localStorage.setItem(KEY_ORDERS, JSON.stringify(allOrders));
+
+    if (orderData.dayOfWeek != null && seatList.length > 0) {
+      const normalizedSeats = seatList.map((seat) => ({
+        row: seat.row,
+        col: seat.col,
+        status: orderData.status === "paid" ? "sold" : "available",
+      }));
+      this.saveSeatStates(
+        normalizedHallType,
+        orderData.dayOfWeek,
+        normalizedSeats,
+      );
+    }
   }
   getOrders() {
     const currentUser = this.getCurrentUser();
@@ -386,7 +402,35 @@ export class StorageManager {
   loadSeatStates(hallType, date) {
     const allStates = JSON.parse(localStorage.getItem(KEY_SEAT_STATES) || "{}");
     const key = `${hallType}_${date}`;
-    return allStates[key] || {};
+    const persistedStates = allStates[key] || {};
+    const rebuiltStates = { ...persistedStates };
+
+    const allOrders = this._getAllOrdersRaw();
+    const relevantOrders = allOrders
+      .filter(
+        (orderData) =>
+          orderData.hallType === hallType && orderData.dayOfWeek === date,
+      )
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    relevantOrders.forEach((orderData) => {
+      const seatList = orderData.seatList || [];
+      if (!Array.isArray(seatList) || seatList.length === 0) return;
+
+      seatList.forEach((seatData) => {
+        const seatId = `r${seatData.row}c${seatData.col}`;
+        if (orderData.status === "paid") {
+          rebuiltStates[seatId] = "sold";
+        } else if (
+          orderData.status === "refunded" ||
+          orderData.status === "cancelled"
+        ) {
+          rebuiltStates[seatId] = "available";
+        }
+      });
+    });
+
+    return rebuiltStates;
   }
 
   saveHeatMap(hallType, date, heatMap) {

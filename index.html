@@ -114,6 +114,33 @@
                   "
                 ></textarea>
               </div>
+              <div
+                id="ai-model-selector"
+                style="
+                  margin-top: 10px;
+                  display: flex;
+                  gap: 8px;
+                  flex-wrap: wrap;
+                "
+              >
+                <span style="font-size: 12px; color: #666; width: 100%">
+                  AI 模型：
+                </span>
+                <button
+                  type="button"
+                  class="btn btn-primary ai-model-btn"
+                  data-model="glm-4.7-flash"
+                >
+                  4.7
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary ai-model-btn"
+                  data-model="glm-4-flash"
+                >
+                  4
+                </button>
+              </div>
             </div>
 
             <button id="recommend-btn" class="btn btn-primary">智能推荐</button>

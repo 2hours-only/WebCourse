@@ -443,6 +443,18 @@ export class UIPanel {
         }
       });
     }
+    const aiModelButtons = document.querySelectorAll(".ai-model-btn");
+    this.selectedAiModel = "glm-4.7-flash";
+    aiModelButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        this.selectedAiModel = button.dataset.model || "glm-4.7-flash";
+        aiModelButtons.forEach((btn) => {
+          btn.classList.toggle("btn-primary", btn === button);
+          btn.classList.toggle("btn-secondary", btn !== button);
+        });
+      });
+    });
+
     const aiRecommendBtn = document.getElementById("ai-recommend-btn");
     if (aiRecommendBtn) {
       aiRecommendBtn.addEventListener("click", () => {
@@ -452,14 +464,13 @@ export class UIPanel {
           dialog.showError("请先在上方填入你的 AI API Key");
           return;
         }
-        // 新增：读取用户额外要求
         const extraRequirementInput = document.getElementById(
           "extra-requirement-input",
         );
         const extraRequirement = extraRequirementInput
           ? extraRequirementInput.value.trim()
           : "";
-        // 显示等待状态
+        const selectedModel = this.selectedAiModel || "glm-4.7-flash";
         aiRecommendBtn.disabled = true;
         aiRecommendBtn.textContent = "等待回复中...";
         aiRecommendBtn.classList.add("btn-loading");
@@ -467,6 +478,7 @@ export class UIPanel {
           apiKey,
           userInput: this.getUserInput(),
           extraRequirement,
+          model: selectedModel,
         });
       });
     }
